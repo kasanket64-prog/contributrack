@@ -1,4 +1,4 @@
-import { useState } from 'react';
+import { useId, useMemo, useState } from 'react';
 
 interface Slice {
   label: string;
@@ -6,9 +6,17 @@ interface Slice {
   color: string;
 }
 
+interface PieChartProps {
+  data: Slice[];
+  size?: number;
+}
+
 function polarToCartesian(cx: number, cy: number, r: number, angleDeg: number) {
   const rad = ((angleDeg - 90) * Math.PI) / 180;
-  return { x: cx + r * Math.cos(rad), y: cy + r * Math.sin(rad) };
+  return {
+    x: cx + r * Math.cos(rad),
+    y: cy + r * Math.sin(rad),
+  };
 }
 
 function arcPath(cx: number, cy: number, r: number, start: number, end: number) {
@@ -18,13 +26,30 @@ function arcPath(cx: number, cy: number, r: number, start: number, end: number) 
   return `M ${cx} ${cy} L ${s.x} ${s.y} A ${r} ${r} 0 ${large} 1 ${e.x} ${e.y} Z`;
 }
 
-export default function PieChart({ data, size = 200 }: { data: Slice[]; size?: number }) {
+export default function PieChart({ data, size = 200 }: PieChartProps) {
   const [hovered, setHovered] = useState<number | null>(null);
-  const total = data.reduce((s, d) => s + d.value, 0);
+  const chartId = useId();
+
+  const safeData = useMemo(
+    () =>
+      (data ?? [])
+        .map((d) => ({
+          label: String(d?.label ?? ''),
+          value: Number.isFinite(d?.value) ? Math.max(0, d.value) : 0,
+          color: d?.color || '#3B82F6',
+        }))
+        .filter((d) => d.value > 0),
+    [data]
+  );
+
+  const total = safeData.reduce((sum, d) => sum + d.value, 0);
 
   if (total === 0) {
     return (
-      <div className="flex items-center justify-center text-gray-600 text-sm" style={{ width: size, height: size }}>
+      <div
+        className="flex items-center justify-center text-sm text-gray-600"
+        style={{ width: size, height: size }}
+      >
         No data
       </div>
     );
@@ -36,23 +61,35 @@ export default function PieChart({ data, size = 200 }: { data: Slice[]; size?: n
   const ir = r * 0.52;
 
   let currentAngle = 0;
-  const slices = data.map((d, i) => {
+
+  const slices = safeData.map((d, i) => {
     const angle = (d.value / total) * 360;
     const start = currentAngle;
     const end = currentAngle + angle;
     currentAngle = end;
-    return { ...d, start, end, angle, pct: Math.round((d.value / total) * 100), idx: i };
+
+    return {
+      ...d,
+      start,
+      end,
+      angle,
+      pct: Math.round((d.value / total) * 100),
+      idx: i,
+    };
   });
 
   const active = hovered !== null ? slices[hovered] : null;
 
   return (
-    <div className="flex gap-5 items-center">
-      <div className="relative flex-shrink-0" style={{ width: size, height: size }}>
+    <div className="flex items-center gap-5">
+      <div
+        className="relative flex-shrink-0"
+        style={{ width: size, height: size }}
+      >
         <svg width={size} height={size} viewBox={`0 0 ${size} ${size}`}>
           <defs>
             {slices.map((s) => (
-              <filter key={s.idx} id={`glow-${s.idx}`}>
+              <filter key={s.idx} id={`${chartId}-glow-${s.idx}`}>
                 <feGaussianBlur stdDeviation="3" result="coloredBlur" />
                 <feMerge>
                   <feMergeNode in="coloredBlur" />
@@ -61,6 +98,7 @@ export default function PieChart({ data, size = 200 }: { data: Slice[]; size?: n
               </filter>
             ))}
           </defs>
+
           {slices.map((s) =>
             s.angle > 0.5 ? (
               <path
@@ -70,9 +108,9 @@ export default function PieChart({ data, size = 200 }: { data: Slice[]; size?: n
                 stroke="#0D1626"
                 strokeWidth={2.5}
                 opacity={hovered === null || hovered === s.idx ? 1 : 0.35}
-                filter={hovered === s.idx ? `url(#glow-${s.idx})` : undefined}
+                filter={hovered === s.idx ? `url(#${chartId}-glow-${s.idx})` : undefined}
                 style={{
-                  transform: hovered === s.idx ? `scale(1.04)` : 'scale(1)',
+                  transform: hovered === s.idx ? 'scale(1.04)' : 'scale(1)',
                   transformOrigin: `${cx}px ${cy}px`,
                   transition: 'all 0.2s ease',
                   cursor: 'pointer',
@@ -82,42 +120,93 @@ export default function PieChart({ data, size = 200 }: { data: Slice[]; size?: n
               />
             ) : null
           )}
+
           {/* Donut hole */}
           <circle cx={cx} cy={cy} r={ir} fill="white" />
-          {/* Center text */}
+
+          {/* Center content */}
           {active ? (
             <>
-              <text x={cx} y={cy - 10} textAnchor="middle" fontSize={13} fontWeight="800" fill={active.color}>{active.pct}%</text>
-              <text x={cx} y={cy + 5} textAnchor="middle" fontSize={9} fill="#6B7280">{active.label.slice(0, 10)}</text>
-              <text x={cx} y={cy + 18} textAnchor="middle" fontSize={8} fill="#9CA3AF">{active.value} readings</text>
+              <text
+                x={cx}
+                y={cy - 10}
+                textAnchor="middle"
+                fontSize={13}
+                fontWeight="800"
+                fill={active.color}
+              >
+                {active.pct}%
+              </text>
+              <text
+                x={cx}
+                y={cy + 5}
+                textAnchor="middle"
+                fontSize={9}
+                fill="#6B7280"
+              >
+                {active.label.length > 10 ? `${active.label.slice(0, 10)}…` : active.label}
+              </text>
+              <text
+                x={cx}
+                y={cy + 18}
+                textAnchor="middle"
+                fontSize={8}
+                fill="#9CA3AF"
+              >
+                {active.value} readings
+              </text>
             </>
           ) : (
             <>
-              <text x={cx} y={cy - 6} textAnchor="middle" fontSize={16} fontWeight="900" fill="#111827">{total}</text>
-              <text x={cx} y={cy + 9} textAnchor="middle" fontSize={9} fill="#9CA3AF">readings</text>
+              <text
+                x={cx}
+                y={cy - 6}
+                textAnchor="middle"
+                fontSize={16}
+                fontWeight="900"
+                fill="#111827"
+              >
+                {total}
+              </text>
+              <text
+                x={cx}
+                y={cy + 9}
+                textAnchor="middle"
+                fontSize={9}
+                fill="#9CA3AF"
+              >
+                readings
+              </text>
             </>
           )}
         </svg>
       </div>
-      <div className="flex flex-col gap-2 min-w-0">
+
+      <div className="flex min-w-0 flex-col gap-2">
         {slices.map((s) => (
           <div
             key={s.idx}
-            className="flex items-center gap-2 cursor-default group"
+            className="group flex cursor-default items-center gap-2"
             onMouseEnter={() => setHovered(s.idx)}
             onMouseLeave={() => setHovered(null)}
           >
             <span
-              className="w-2.5 h-2.5 rounded-full flex-shrink-0 transition-all"
+              className="h-2.5 w-2.5 flex-shrink-0 rounded-full transition-all"
               style={{
                 backgroundColor: s.color,
                 boxShadow: hovered === s.idx ? `0 0 8px ${s.color}` : 'none',
               }}
             />
-            <span className={`text-xs truncate max-w-[90px] transition-colors ${hovered === s.idx ? 'text-gray-900' : 'text-gray-500'}`}>
+            <span
+              className={`max-w-[90px] truncate text-xs transition-colors ${
+                hovered === s.idx ? 'text-gray-900' : 'text-gray-500'
+              }`}
+            >
               {s.label}
             </span>
-            <span className="ml-auto text-xs font-black" style={{ color: s.color }}>{s.pct}%</span>
+            <span className="ml-auto text-xs font-black" style={{ color: s.color }}>
+              {s.pct}%
+            </span>
           </div>
         ))}
       </div>
