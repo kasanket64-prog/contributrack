@@ -1,40 +1,68 @@
 import { useEffect, useRef, useState, useCallback } from 'react';
 import {
-  Activity, Users, BarChart2, Mic, Camera, FileText,
-  ArrowRight, CheckCircle, Cpu, Shield, Zap, Star,
-  TrendingUp, ChevronRight, Play, Award, Globe, Lock
+  Activity,
+  ArrowRight,
+  BarChart2,
+  Camera,
+  Check,
+  ChevronDown,
+  Cpu,
+  CreditCard,
+  Download,
+  FileText,
+  Globe,
+  Layers,
+  Lock,
+  Mic,
+  Shield,
+  Sparkles,
+  Star,
+  X,
+  Zap,
 } from 'lucide-react';
 import type { Page } from '../lib/types';
+import { loadSettings, saveSettings, type PlanTier } from '../lib/settings';
+import { usePwaInstall } from '../hooks/usePwaInstall';
+import InstallAppModal from '../components/InstallAppModal';
+import GlassOrb3D from '../components/landing/GlassOrb3D';
+import InteractiveShowcase from '../components/landing/InteractiveShowcase';
 
 interface Props {
   navigate: (page: Page) => void;
 }
 
-/* ─── Animated counter ─── */
-function Counter({ to, suffix = '', duration = 1500 }: { to: number; suffix?: string; duration?: number }) {
+/* ─── Animated count-up ─── */
+function Counter({ to, suffix = '', duration = 1400 }: { to: number; suffix?: string; duration?: number }) {
   const [val, setVal] = useState(0);
   const ref = useRef<HTMLSpanElement>(null);
   useEffect(() => {
-    const obs = new IntersectionObserver(([e]) => {
-      if (!e.isIntersecting) return;
-      obs.disconnect();
-      const start = Date.now();
-      const tick = () => {
-        const elapsed = Date.now() - start;
-        const progress = Math.min(elapsed / duration, 1);
-        const ease = 1 - Math.pow(1 - progress, 3);
-        setVal(Math.round(ease * to));
-        if (progress < 1) requestAnimationFrame(tick);
-      };
-      requestAnimationFrame(tick);
-    }, { threshold: 0.5 });
+    const obs = new IntersectionObserver(
+      ([e]) => {
+        if (!e.isIntersecting) return;
+        obs.disconnect();
+        const start = Date.now();
+        const tick = () => {
+          const progress = Math.min((Date.now() - start) / duration, 1);
+          const ease = 1 - Math.pow(1 - progress, 3);
+          setVal(Math.round(ease * to));
+          if (progress < 1) requestAnimationFrame(tick);
+        };
+        requestAnimationFrame(tick);
+      },
+      { threshold: 0.4 },
+    );
     if (ref.current) obs.observe(ref.current);
     return () => obs.disconnect();
   }, [to, duration]);
-  return <span ref={ref}>{val}{suffix}</span>;
+  return (
+    <span ref={ref}>
+      {val}
+      {suffix}
+    </span>
+  );
 }
 
-/* ─── Particle canvas ─── */
+/* ─── Subtle floating particles ─── */
 function ParticleField() {
   const canvasRef = useRef<HTMLCanvasElement>(null);
 
@@ -44,7 +72,7 @@ function ParticleField() {
     const ctx = canvas.getContext('2d');
     if (!ctx) return;
 
-    let animId: number;
+    let animId = 0;
     const resize = () => {
       canvas.width = canvas.offsetWidth;
       canvas.height = canvas.offsetHeight;
@@ -52,19 +80,18 @@ function ParticleField() {
     resize();
     window.addEventListener('resize', resize);
 
-    const count = 80;
-    const particles = Array.from({ length: count }, () => ({
+    const particles = Array.from({ length: 65 }, () => ({
       x: Math.random() * canvas.width,
       y: Math.random() * canvas.height,
-      vx: (Math.random() - 0.5) * 0.3,
-      vy: (Math.random() - 0.5) * 0.3,
-      r: Math.random() * 1.5 + 0.5,
-      alpha: Math.random() * 0.5 + 0.1,
+      vx: (Math.random() - 0.5) * 0.25,
+      vy: (Math.random() - 0.5) * 0.25,
+      r: Math.random() * 1.4 + 0.4,
+      alpha: Math.random() * 0.45 + 0.1,
     }));
 
     const draw = () => {
       ctx.clearRect(0, 0, canvas.width, canvas.height);
-      particles.forEach((p) => {
+      for (const p of particles) {
         p.x += p.vx;
         p.y += p.vy;
         if (p.x < 0) p.x = canvas.width;
@@ -74,21 +101,20 @@ function ParticleField() {
 
         ctx.beginPath();
         ctx.arc(p.x, p.y, p.r, 0, Math.PI * 2);
-        ctx.fillStyle = `rgba(96,165,250,${p.alpha})`;
+        ctx.fillStyle = `rgba(103, 232, 249, ${p.alpha})`;
         ctx.fill();
-      });
+      }
 
-      // draw connections
       for (let i = 0; i < particles.length; i++) {
         for (let j = i + 1; j < particles.length; j++) {
           const dx = particles[i].x - particles[j].x;
           const dy = particles[i].y - particles[j].y;
           const dist = Math.sqrt(dx * dx + dy * dy);
-          if (dist < 100) {
+          if (dist < 110) {
             ctx.beginPath();
             ctx.moveTo(particles[i].x, particles[i].y);
             ctx.lineTo(particles[j].x, particles[j].y);
-            ctx.strokeStyle = `rgba(96,165,250,${0.08 * (1 - dist / 100)})`;
+            ctx.strokeStyle = `rgba(99, 102, 241, ${0.08 * (1 - dist / 110)})`;
             ctx.lineWidth = 0.6;
             ctx.stroke();
           }
@@ -104,19 +130,19 @@ function ParticleField() {
     };
   }, []);
 
-  return <canvas ref={canvasRef} className="absolute inset-0 w-full h-full pointer-events-none" />;
+  return <canvas ref={canvasRef} className="pointer-events-none absolute inset-0 h-full w-full" />;
 }
 
-/* ─── Typewriter ─── */
+/* ─── Typewriter headline accent ─── */
 function Typewriter({ words }: { words: string[] }) {
   const [wordIdx, setWordIdx] = useState(0);
-  const [displayed, setDisplayed] = useState('');
+  const [displayed, setDisplayed] = useState('Contributions');
   const [deleting, setDeleting] = useState(false);
-  const [pause, setPause] = useState(false);
+  const [pause, setPause] = useState(true);
 
   useEffect(() => {
     if (pause) {
-      const t = setTimeout(() => setPause(false), 1400);
+      const t = setTimeout(() => setPause(false), 1500);
       return () => clearTimeout(t);
     }
     const target = words[wordIdx];
@@ -130,7 +156,7 @@ function Typewriter({ words }: { words: string[] }) {
       setWordIdx((p) => (p + 1) % words.length);
       return;
     }
-    const speed = deleting ? 45 : 85;
+    const speed = deleting ? 42 : 80;
     const t = setTimeout(() => {
       setDisplayed(deleting ? displayed.slice(0, -1) : target.slice(0, displayed.length + 1));
     }, speed);
@@ -138,191 +164,224 @@ function Typewriter({ words }: { words: string[] }) {
   }, [displayed, deleting, pause, wordIdx, words]);
 
   return (
-    <span className="text-transparent bg-clip-text bg-gradient-to-r from-blue-400 via-cyan-400 to-emerald-400">
+    <span className="bg-gradient-to-r from-cyan-300 via-sky-400 to-indigo-400 bg-clip-text text-transparent">
       {displayed}
-      <span className="animate-pulse text-cyan-400">|</span>
+      <span className="animate-pulse text-cyan-300">|</span>
     </span>
   );
 }
 
-/* ─── Scroll reveal wrapper ─── */
-function Reveal({ children, delay = 0, className = '' }: { children: React.ReactNode; delay?: number; className?: string }) {
-  const ref = useRef<HTMLDivElement>(null);
-  const [visible, setVisible] = useState(false);
-
-  useEffect(() => {
-    const obs = new IntersectionObserver(([e]) => {
-      if (e.isIntersecting) { setVisible(true); obs.disconnect(); }
-    }, { threshold: 0.12 });
-    if (ref.current) obs.observe(ref.current);
-    return () => obs.disconnect();
-  }, []);
-
-  return (
-    <div
-      ref={ref}
-      className={className}
-      style={{
-        opacity: visible ? 1 : 0,
-        transform: visible ? 'translateY(0)' : 'translateY(32px)',
-        transition: `opacity 0.7s ease ${delay}ms, transform 0.7s ease ${delay}ms`,
-      }}
-    >
-      {children}
-    </div>
-  );
-}
-
-/* ─── Live mock dashboard ─── */
-function MockDashboard() {
-  const [tick, setTick] = useState(0);
-  useEffect(() => {
-    const id = setInterval(() => setTick((t) => t + 1), 1200);
-    return () => clearInterval(id);
-  }, []);
-
-  const members = [
-    { name: 'Alex', voice: 87, color: '#3B82F6' },
-    { name: 'Priya', voice: 72, color: '#10B981' },
-    { name: 'Sam', voice: 58, color: '#F59E0B' },
-    { name: 'Jordan', voice: 91, color: '#EF4444' },
-  ];
-
-  const liveVoice = members.map((m) => ({
-    ...m,
-    cur: Math.min(100, m.voice + Math.sin((tick + m.voice) * 0.4) * 8),
-  }));
-
-  return (
-    <div className="bg-[#0D1626] border border-white/10 rounded-2xl overflow-hidden shadow-2xl w-full">
-      {/* titlebar */}
-      <div className="flex items-center gap-2 px-4 py-3 border-b border-white/5 bg-[#0A1020]">
-        <div className="w-3 h-3 rounded-full bg-red-500/70" />
-        <div className="w-3 h-3 rounded-full bg-yellow-500/70" />
-        <div className="w-3 h-3 rounded-full bg-green-500/70" />
-        <span className="text-gray-500 text-xs ml-3 font-mono">ContribuTrack Dashboard</span>
-        <div className="ml-auto flex items-center gap-1.5">
-          <span className="w-2 h-2 rounded-full bg-emerald-400 animate-pulse" />
-          <span className="text-xs text-emerald-400 font-medium">Live</span>
-        </div>
-      </div>
-
-      {/* content */}
-      <div className="p-5 space-y-4">
-        {/* stat row */}
-        <div className="grid grid-cols-3 gap-3">
-          {[
-            { label: 'Members', val: '6', icon: Users, color: 'text-blue-400', bg: 'bg-blue-400/10' },
-            { label: 'Fairness', val: '94%', icon: Award, color: 'text-emerald-400', bg: 'bg-emerald-400/10' },
-            { label: 'Sessions', val: '12', icon: Activity, color: 'text-amber-400', bg: 'bg-amber-400/10' },
-          ].map((s) => (
-            <div key={s.label} className="bg-white/[0.03] border border-white/5 rounded-xl p-3">
-              <div className={`w-7 h-7 rounded-lg ${s.bg} flex items-center justify-center mb-2`}>
-                <s.icon size={14} className={s.color} />
-              </div>
-              <p className="text-white font-bold text-lg leading-none">{s.val}</p>
-              <p className="text-gray-500 text-xs mt-1">{s.label}</p>
-            </div>
-          ))}
-        </div>
-
-        {/* live voice bars */}
-        <div className="bg-white/[0.02] border border-white/5 rounded-xl p-4">
-          <p className="text-xs text-gray-400 font-semibold mb-3 flex items-center gap-1.5">
-            <Mic size={11} className="text-blue-400" /> Voice Contributions — Live
-          </p>
-          <div className="space-y-2.5">
-            {liveVoice.map((m) => (
-              <div key={m.name} className="flex items-center gap-3">
-                <span className="text-xs text-gray-400 w-10 font-medium">{m.name}</span>
-                <div className="flex-1 bg-white/5 rounded-full h-2 overflow-hidden">
-                  <div
-                    className="h-full rounded-full"
-                    style={{
-                      width: `${m.cur}%`,
-                      background: m.color,
-                      transition: 'width 0.8s cubic-bezier(0.4,0,0.2,1)',
-                      boxShadow: `0 0 8px ${m.color}60`,
-                    }}
-                  />
-                </div>
-                <span className="text-xs font-bold w-8 text-right" style={{ color: m.color }}>
-                  {Math.round(m.cur)}%
-                </span>
-              </div>
-            ))}
-          </div>
-        </div>
-
-        {/* mini pie placeholder */}
-        <div className="flex gap-3">
-          <div className="flex-1 bg-white/[0.02] border border-white/5 rounded-xl p-3 flex items-center gap-3">
-            <svg width="44" height="44" viewBox="0 0 44 44">
-              {[
-                { pct: 0.35, color: '#3B82F6', offset: 0 },
-                { pct: 0.28, color: '#10B981', offset: 0.35 },
-                { pct: 0.22, color: '#F59E0B', offset: 0.63 },
-                { pct: 0.15, color: '#EF4444', offset: 0.85 },
-              ].map((seg, i) => {
-                const r = 18; const cx = 22; const cy = 22;
-                const a1 = seg.offset * 2 * Math.PI - Math.PI / 2;
-                const a2 = (seg.offset + seg.pct) * 2 * Math.PI - Math.PI / 2;
-                const x1 = cx + r * Math.cos(a1); const y1 = cy + r * Math.sin(a1);
-                const x2 = cx + r * Math.cos(a2); const y2 = cy + r * Math.sin(a2);
-                const large = seg.pct > 0.5 ? 1 : 0;
-                return (
-                  <path
-                    key={i}
-                    d={`M${cx},${cy} L${x1},${y1} A${r},${r},0,${large},1,${x2},${y2} Z`}
-                    fill={seg.color}
-                    opacity="0.85"
-                  />
-                );
-              })}
-            </svg>
-            <div>
-              <p className="text-xs text-gray-400 font-medium">Contribution Split</p>
-              <p className="text-white text-sm font-bold mt-0.5">4 Members</p>
-            </div>
-          </div>
-          <div className="flex-1 bg-white/[0.02] border border-white/5 rounded-xl p-3 flex items-center justify-center">
-            <div className="text-center">
-              <p className="text-2xl font-black text-transparent bg-clip-text bg-gradient-to-br from-emerald-400 to-teal-300">94</p>
-              <p className="text-xs text-gray-500 font-medium">Fairness Score</p>
-            </div>
-          </div>
-        </div>
-      </div>
-    </div>
-  );
-}
-
-const features = [
-  { icon: Mic, title: 'Voice Activity Tracking', desc: 'Smart microphones capture real-time speech from every member — timestamped and attributed automatically.', gradient: 'from-blue-500 to-cyan-400', glow: 'shadow-blue-500/20' },
-  { icon: Camera, title: 'Face Detection', desc: 'Computer vision confirms physical presence and sustained engagement throughout every session.', gradient: 'from-emerald-500 to-teal-400', glow: 'shadow-emerald-500/20' },
-  { icon: FileText, title: 'Writing Analysis', desc: 'Upload documents and get instant metrics: word count, vocabulary richness, and contribution score.', gradient: 'from-amber-500 to-orange-400', glow: 'shadow-amber-500/20' },
-  { icon: BarChart2, title: 'Fairness Score', desc: 'AI computes a real-time fairness index using statistical deviation across all contribution signals.', gradient: 'from-rose-500 to-pink-400', glow: 'shadow-rose-500/20' },
-  { icon: Cpu, title: 'IoT Device Integration', desc: 'One REST endpoint. Works with Arduino, Raspberry Pi, ESP32 — any device that can POST JSON.', gradient: 'from-sky-500 to-blue-400', glow: 'shadow-sky-500/20' },
-  { icon: Shield, title: 'Bias-Free Results', desc: 'Data-driven scores remove subjectivity and give every member a verifiable, transparent record.', gradient: 'from-violet-500 to-blue-400', glow: 'shadow-violet-500/20' },
+const TRUSTED_ORGS = [
+  'MIT MEDIA LAB',
+  'STANFORD HAI',
+  'ETH ZÜRICH',
+  'LINEAR LABS',
+  'VERCEL AI',
+  'OXFORD ROBOTICS',
 ];
 
-const testimonials = [
-  { name: 'Dr. Sarah Chen', role: 'CS Professor, MIT', quote: 'ContribuTrack transformed how I grade group projects. The fairness score is indisputable.', avatar: 'SC', grad: 'from-blue-500 to-cyan-400' },
-  { name: 'Marcus Rivera', role: 'Engineering Team Lead', quote: 'One person was doing 80% of the work. The data exposed it — and changed everything.', avatar: 'MR', grad: 'from-emerald-500 to-teal-400' },
-  { name: 'Aisha Patel', role: 'Graduate Student', quote: 'Finally a system that records my effort accurately. No more unequal credit distribution.', avatar: 'AP', grad: 'from-amber-500 to-orange-400' },
+const BENTO_FEATURES = [
+  {
+    span: 'col-span-12 lg:col-span-7',
+    badge: 'MULTIMODAL VOICE',
+    title: 'Real-Time Speech Intelligence',
+    desc: 'Classifies every spoken contribution across languages — separating productive ideas from off-topic chatter or disruption.',
+    icon: Mic,
+    accent: 'from-cyan-400 to-blue-500',
+    metric: '96.4% precision',
+  },
+  {
+    span: 'col-span-12 md:col-span-6 lg:col-span-5',
+    badge: 'COMPUTER VISION',
+    title: '6-State Facial Presence',
+    desc: 'Rewards heads-down laptop focus while detecting drowsiness, distraction, and absence.',
+    icon: Camera,
+    accent: 'from-emerald-400 to-teal-500',
+    metric: 'ENGAGED · FOCUSED',
+  },
+  {
+    span: 'col-span-12 md:col-span-6 lg:col-span-4',
+    badge: 'DOCUMENT ENGINE',
+    title: 'Instant Deliverable Parsing',
+    desc: 'Extracts text client-side from PDF, DOCX, PPTX, XLSX, and code to score written output fairly.',
+    icon: FileText,
+    accent: 'from-amber-400 to-orange-500',
+    metric: '10+ file formats',
+  },
+  {
+    span: 'col-span-12 md:col-span-6 lg:col-span-4',
+    badge: 'FAIRNESS INDEX',
+    title: 'Statistical Equity Scoring',
+    desc: 'Switch seamlessly between Standard Deviation, Gini Coefficient, and Min-Max Range models.',
+    icon: BarChart2,
+    accent: 'from-indigo-400 to-violet-500',
+    metric: 'Zero bias audit',
+  },
+  {
+    span: 'col-span-12 md:col-span-6 lg:col-span-4',
+    badge: 'EDGE SECURITY',
+    title: 'Signed Biometrics & Secrets',
+    desc: 'Per-device secrets, private storage buckets, and short-lived signed URLs protect sensitive data.',
+    icon: Shield,
+    accent: 'from-rose-400 to-pink-500',
+    metric: 'RLS + TLS encrypted',
+  },
+  {
+    span: 'col-span-12',
+    badge: 'OPEN HARDWARE & ZERO-CONFIG CLOUD',
+    title: 'Works with ESP32, Raspberry Pi, or Pure Browser Demo Mode',
+    desc: 'Stream JSON telemetry from physical hardware or test everything immediately in your browser with built-in rule-based scoring and optional Gemini, Groq, or Claude keys.',
+    icon: Cpu,
+    accent: 'from-cyan-400 via-indigo-400 to-emerald-400',
+    metric: 'POST /functions/v1/iot-data',
+  },
 ];
 
-const steps = [
-  { num: '01', title: 'Register Your Team', desc: 'Add members, assign device IDs, and configure roles in under a minute.', icon: Users },
-  { num: '02', title: 'Start a Session', desc: 'Connected devices stream voice and face data to the dashboard in real time.', icon: Play },
-  { num: '03', title: 'Upload Documents', desc: 'Drop in written work and get instant contribution scores per member.', icon: FileText },
-  { num: '04', title: 'Review & Share', desc: 'Export fairness charts and per-member breakdowns at a glance.', icon: BarChart2 },
+const TESTIMONIALS = [
+  {
+    quote:
+      'ContribuTrack turned subjective peer evaluations into clear, verifiable telemetry. Even quiet builders working heads-down get the exact credit they deserve.',
+    name: 'Dr. Sarah Chen',
+    role: 'Associate Professor of CS, Capstone Lab',
+    avatar: 'SC',
+    badge: '+34% grading clarity',
+    grad: 'from-cyan-500 to-blue-600',
+  },
+  {
+    quote:
+      'We wired four Raspberry Pi nodes into our sprint rooms in twenty minutes. The fairness index exposed imbalances on day one and transformed team accountability.',
+    name: 'Marcus Rivera',
+    role: 'Staff Engineering Lead, Velocity Systems',
+    avatar: 'MR',
+    badge: '40ms edge ingest',
+    grad: 'from-indigo-500 to-violet-600',
+  },
+  {
+    quote:
+      'Having both multilingual transcript analysis and document contribution scores in one spatial dashboard eliminated every end-of-semester credit dispute.',
+    name: 'Aisha Patel',
+    role: 'Graduate Robotics Researcher',
+    avatar: 'AP',
+    badge: '98% team satisfaction',
+    grad: 'from-emerald-500 to-teal-600',
+  },
+];
+
+const PRICING_TIERS: {
+  id: PlanTier;
+  name: string;
+  tagline: string;
+  monthly: number;
+  annual: number;
+  popular: boolean;
+  cta: string;
+  features: string[];
+}[] = [
+  {
+    id: 'starter',
+    name: 'Starter',
+    tagline: 'For student teams & zero-config local evaluation',
+    monthly: 0,
+    annual: 0,
+    popular: false,
+    cta: 'Launch Free Demo',
+    features: [
+      'Up to 6 team members & 4 IoT devices',
+      'Full Local Demo Mode (no backend setup)',
+      'Rule-based voice & engagement scoring',
+      'PDF, DOCX, PPTX, XLSX document parsing',
+    ],
+  },
+  {
+    id: 'pro',
+    name: 'Pro Team',
+    tagline: 'For labs & product squads running live Supabase telemetry',
+    monthly: 29,
+    annual: 23,
+    popular: true,
+    cta: 'Start Pro Workspace',
+    features: [
+      'Unlimited members, sessions & devices',
+      'Gemini 2.5 Flash, Groq & Claude Opus/Haiku AI',
+      'Real-time Supabase streams & signed biometrics',
+      'Custom Fairness models (StdDev, Gini, Range)',
+    ],
+  },
+  {
+    id: 'enterprise',
+    name: 'Enterprise',
+    tagline: 'For universities & multi-cohort engineering orgs',
+    monthly: 99,
+    annual: 79,
+    popular: false,
+    cta: 'Deploy Cohort Node',
+    features: [
+      'Dedicated edge clusters & custom retention',
+      'SAML / institutional SSO & audit exports',
+      'Fleet provisioning for ESP32 & Pi sensors',
+      'Priority model routing & SLA guarantee',
+    ],
+  },
+];
+
+const FAQS = [
+  {
+    q: 'Do I need external API keys or hardware just to run ContribuTrack?',
+    a: 'No. When Supabase credentials are omitted, ContribuTrack boots directly into Local Demo Mode in your browser with seeded sessions, IndexedDB biometric storage, and a built-in rule-based scoring engine.',
+  },
+  {
+    q: 'Which AI providers are supported for transcript and narrative scoring?',
+    a: 'The Edge Functions automatically route to Anthropic Claude, Google Gemini 2.5 Flash (free tier supported), or Groq Llama 3.3 70B — and fall back gracefully to deterministic rule-based scoring if no key is configured.',
+  },
+  {
+    q: 'How do you handle silent contributors working on laptops?',
+    a: 'Camera telemetry explicitly classifies looking down at a laptop or notebook as FOCUSED (a positive active state scoring 65–85), separating productive silent work from DISTRACTED or DROWSY states.',
+  },
+  {
+    q: 'How are biometric photos and voice samples secured?',
+    a: 'Member photos and voice samples are stored in a private bucket protected by authenticated RLS policies and resolved on demand via 1-hour signed URLs — never exposed as permanent public links.',
+  },
+  {
+    q: 'How do IoT devices authenticate when posting readings?',
+    a: 'Each paired member receives a per-device secret generated with cryptographic randomness. Devices must present a matching device_secret in the JSON body or X-Device-Secret header.',
+  },
+  {
+    q: 'Can we change how the Fairness Score is calculated?',
+    a: 'Yes. Under Settings → Contribution Logic, teams can choose between Standard Deviation, Gini Coefficient, or Min-Max Range, and persist dashboard polling intervals across sessions.',
+  },
 ];
 
 export default function Landing({ navigate }: Props) {
-  const [mousePos, setMousePos] = useState({ x: 0, y: 0 });
-  const heroRef = useRef<HTMLDivElement>(null);
+  const [mousePos, setMousePos] = useState({ x: -500, y: -500 });
   const [navScrolled, setNavScrolled] = useState(false);
+  const [annualBilling, setAnnualBilling] = useState(true);
+  const [openFaq, setOpenFaq] = useState<number | null>(0);
+  const [checkoutTier, setCheckoutTier] = useState<(typeof PRICING_TIERS)[number] | null>(null);
+  const [installModalOpen, setInstallModalOpen] = useState(false);
+
+  const { canNativeInstall, isInstalled, platform, promptInstall } = usePwaInstall();
+
+  const handleInstallApp = async () => {
+    const outcome = await promptInstall();
+    if (outcome === 'manual') {
+      setInstallModalOpen(true);
+    }
+  };
+
+  const handleSelectTier = (tier: (typeof PRICING_TIERS)[number]) => {
+    const s = loadSettings();
+    if (tier.id === 'starter') {
+      saveSettings({ ...s, planTier: 'starter' });
+      navigate('login');
+      return;
+    }
+    const paymentUrl = tier.id === 'pro' ? s.stripeProUrl.trim() : s.stripeEnterpriseUrl.trim();
+    if (paymentUrl) {
+      window.open(paymentUrl, '_blank', 'noopener,noreferrer');
+      return;
+    }
+    setCheckoutTier(tier);
+  };
 
   const handleMouseMove = useCallback((e: MouseEvent) => {
     setMousePos({ x: e.clientX, y: e.clientY });
@@ -330,7 +389,7 @@ export default function Landing({ navigate }: Props) {
 
   useEffect(() => {
     window.addEventListener('mousemove', handleMouseMove);
-    const handleScroll = () => setNavScrolled(window.scrollY > 40);
+    const handleScroll = () => setNavScrolled(window.scrollY > 32);
     window.addEventListener('scroll', handleScroll);
     return () => {
       window.removeEventListener('mousemove', handleMouseMove);
@@ -339,335 +398,671 @@ export default function Landing({ navigate }: Props) {
   }, [handleMouseMove]);
 
   return (
-    <div className="min-h-screen bg-[#060C1A] text-white font-sans overflow-x-hidden">
+    <div className="relative min-h-screen overflow-x-hidden bg-[#030712] font-sans text-white">
+      {/* ══════ GLOBAL AURORA & VOLUMETRIC LIGHTING ══════ */}
+      <div className="pointer-events-none fixed inset-0 overflow-hidden">
+        <div
+          className="absolute -left-[15%] -top-[20%] h-[760px] w-[760px] rounded-full opacity-35 blur-[140px] animate-aurora"
+          style={{ background: 'radial-gradient(circle, rgba(6,182,212,0.45), transparent 70%)' }}
+        />
+        <div
+          className="absolute -right-[12%] top-[10%] h-[680px] w-[680px] rounded-full opacity-30 blur-[140px] animate-aurora"
+          style={{
+            background: 'radial-gradient(circle, rgba(99,102,241,0.5), transparent 70%)',
+            animationDelay: '-6s',
+          }}
+        />
+        <div
+          className="absolute bottom-[-20%] left-[25%] h-[620px] w-[620px] rounded-full opacity-20 blur-[150px] animate-aurora"
+          style={{
+            background: 'radial-gradient(circle, rgba(16,185,129,0.4), transparent 70%)',
+            animationDelay: '-12s',
+          }}
+        />
+        {/* Subtle volumetric grid */}
+        <div
+          className="absolute inset-0 opacity-[0.035]"
+          style={{
+            backgroundImage:
+              'linear-gradient(to right, rgba(255,255,255,0.4) 1px, transparent 1px), linear-gradient(to bottom, rgba(255,255,255,0.4) 1px, transparent 1px)',
+            backgroundSize: '64px 64px',
+          }}
+        />
+      </div>
 
-      {/* ══════ CURSOR GLOW ══════ */}
+      {/* Cursor spotlight */}
       <div
-        className="fixed top-0 left-0 w-72 h-72 pointer-events-none z-0 rounded-full"
+        className="pointer-events-none fixed left-0 top-0 z-10 h-96 w-96 rounded-full"
         style={{
-          background: 'radial-gradient(circle, rgba(59,130,246,0.08) 0%, transparent 70%)',
-          transform: `translate(${mousePos.x - 144}px, ${mousePos.y - 144}px)`,
-          transition: 'transform 0.15s ease',
+          background: 'radial-gradient(circle, rgba(6,182,212,0.09) 0%, transparent 70%)',
+          transform: `translate(${mousePos.x - 192}px, ${mousePos.y - 192}px)`,
+          transition: 'transform 0.14s ease-out',
         }}
       />
 
-      {/* ══════ NAVBAR ══════ */}
-      <nav className={`fixed top-0 w-full z-50 transition-all duration-300 ${navScrolled ? 'bg-[#060C1A]/95 border-b border-white/8 backdrop-blur-xl shadow-xl shadow-black/30' : 'bg-transparent'}`}>
-        <div className="max-w-7xl mx-auto px-6 py-4 flex items-center justify-between">
-          <div className="flex items-center gap-2.5">
-            <div className="w-9 h-9 rounded-xl bg-gradient-to-br from-blue-500 to-cyan-400 flex items-center justify-center shadow-lg shadow-blue-500/40">
-              <Activity size={18} className="text-white" />
+      {/* ══════ STICKY FROSTED NAVIGATION BAR ══════ */}
+      <header
+        className={`fixed top-0 z-50 w-full transition-all duration-300 ${
+          navScrolled
+            ? 'border-b border-white/[0.08] bg-[#030712]/75 backdrop-blur-2xl shadow-[0_12px_40px_-10px_rgba(0,0,0,0.7)]'
+            : 'bg-transparent'
+        }`}
+      >
+        <div className="mx-auto grid max-w-[1440px] grid-cols-12 items-center px-6 py-4 lg:px-10">
+          <div className="col-span-6 flex items-center gap-3 md:col-span-3">
+            <div className="relative flex h-9 w-9 items-center justify-center rounded-xl bg-gradient-to-br from-cyan-400 via-blue-500 to-indigo-600 shadow-[0_0_24px_rgba(6,182,212,0.45)]">
+              <Activity size={17} className="text-white" />
             </div>
-            <span className="font-black text-white text-lg tracking-tight">ContribuTrack</span>
+            <div>
+              <span className="text-base font-black tracking-tight text-white">ContribuTrack</span>
+              <span className="ml-2 hidden rounded-md border border-cyan-400/25 bg-cyan-400/10 px-1.5 py-0.5 font-mono text-[9px] font-bold text-cyan-300 sm:inline">
+                v2.6
+              </span>
+            </div>
           </div>
-          <div className="hidden md:flex items-center gap-8 text-sm text-gray-400">
-            {[['Features', '#features'], ['How It Works', '#how-it-works'], ['Testimonials', '#testimonials']].map(([label, href]) => (
-              <a key={label} href={href} className="hover:text-white transition-colors duration-200 relative group">
+
+          <nav className="col-span-6 hidden items-center justify-center gap-7 text-xs font-medium text-gray-400 md:flex">
+            {[
+              ['Features', '#features'],
+              ['Showcase', '#showcase'],
+              ['Design System', '#design-system'],
+              ['Pricing', '#pricing'],
+              ['FAQ', '#faq'],
+            ].map(([label, href]) => (
+              <a
+                key={label}
+                href={href}
+                className="transition-colors duration-200 hover:text-white"
+              >
                 {label}
-                <span className="absolute -bottom-1 left-0 w-0 h-px bg-gradient-to-r from-blue-400 to-cyan-400 group-hover:w-full transition-all duration-300" />
               </a>
             ))}
-          </div>
-          <div className="flex items-center gap-3">
-            <button onClick={() => navigate('login')} className="text-sm text-gray-400 hover:text-white transition-colors font-medium px-3 py-2">
+          </nav>
+
+          <div className="col-span-6 flex items-center justify-end gap-2.5 md:col-span-3">
+            <button
+              type="button"
+              onClick={() => navigate('login')}
+              className="rounded-xl px-3.5 py-2 text-xs font-semibold text-gray-300 transition-colors hover:bg-white/[0.06] hover:text-white"
+            >
               Sign In
             </button>
             <button
+              type="button"
               onClick={() => navigate('login')}
-              className="relative text-sm bg-gradient-to-r from-blue-500 to-cyan-500 text-white px-5 py-2.5 rounded-xl font-bold shadow-lg shadow-blue-500/30 hover:shadow-blue-500/50 hover:scale-105 transition-all duration-200 overflow-hidden group"
+              className="group relative inline-flex items-center gap-1.5 overflow-hidden rounded-xl bg-gradient-to-r from-cyan-400 via-blue-500 to-indigo-500 px-4 py-2 text-xs font-bold text-white shadow-[0_0_28px_-4px_rgba(6,182,212,0.6)] transition-all duration-200 hover:scale-[1.03] hover:shadow-[0_0_36px_-2px_rgba(6,182,212,0.85)]"
             >
-              <span className="relative z-10">Get Started</span>
-              <div className="absolute inset-0 bg-gradient-to-r from-cyan-500 to-blue-500 opacity-0 group-hover:opacity-100 transition-opacity duration-300" />
+              <span>Launch App</span>
+              <ArrowRight size={13} className="transition-transform group-hover:translate-x-0.5" />
             </button>
           </div>
         </div>
-      </nav>
+      </header>
 
-      {/* ══════ HERO ══════ */}
-      <section ref={heroRef} className="relative min-h-screen flex items-center justify-center pt-24 pb-16 px-6 overflow-hidden">
+      {/* ══════ MASSIVE 12-COLUMN HERO SECTION ══════ */}
+      <section className="relative flex min-h-screen items-center pb-20 pt-28 lg:pt-32">
         <ParticleField />
-
-        {/* Background blobs */}
-        <div className="absolute top-[-20%] left-[-10%] w-[700px] h-[700px] rounded-full bg-blue-600/10 blur-[120px] pointer-events-none" />
-        <div className="absolute top-[30%] right-[-15%] w-[600px] h-[600px] rounded-full bg-cyan-500/8 blur-[120px] pointer-events-none" />
-        <div className="absolute bottom-[-10%] left-[30%] w-[500px] h-[500px] rounded-full bg-emerald-500/6 blur-[120px] pointer-events-none" />
-
-        <div className="relative max-w-7xl mx-auto grid lg:grid-cols-2 gap-16 items-center">
-          {/* Left — copy */}
-          <div>
-            {/* Badge */}
-            <div className="inline-flex items-center gap-2 bg-blue-500/10 border border-blue-500/20 text-blue-300 text-xs font-bold px-4 py-2 rounded-full mb-8 backdrop-blur-sm animate-pulse-slow">
-              <span className="w-2 h-2 rounded-full bg-blue-400 animate-pulse" />
-              AI-Powered Group Contribution Tracker
+        <div className="relative z-20 mx-auto grid w-full max-w-[1440px] grid-cols-12 items-center gap-y-12 px-6 lg:gap-x-10 lg:px-10">
+          {/* Left 7 columns */}
+          <div className="col-span-12 lg:col-span-7">
+            <div className="glass-pill mb-7 inline-flex items-center gap-2 rounded-full px-4 py-1.5 text-[11px] font-semibold tracking-wider text-cyan-200">
+              <span className="h-2 w-2 rounded-full bg-cyan-400 shadow-[0_0_10px_#22d3ee]" />
+              SPATIAL TELEMETRY · MULTIMODAL AI · 2026
             </div>
 
-            {/* Headline */}
-            <h1 className="text-5xl md:text-6xl xl:text-7xl font-black leading-[1.04] tracking-tight mb-6">
-              <span className="text-white">Track</span>{' '}
-              <br className="hidden sm:block" />
-              <Typewriter words={['Contributions', 'Fairness', 'Effort', 'Progress', 'Impact']} />
+            <h1 className="text-5xl font-black leading-[0.98] tracking-[-0.04em] text-white sm:text-6xl xl:text-[74px]">
+              Measure Team
               <br />
-              <span className="text-white">In Real Time.</span>
+              <Typewriter words={['Contributions', 'Fairness', 'Presence', 'Impact']} />
+              <br />
+              <span className="text-white/90">With Zero Bias.</span>
             </h1>
 
-            <p className="text-lg text-gray-400 max-w-lg mb-10 leading-relaxed">
-              Eliminate unfair credit distribution. ContribuTrack uses voice, face detection, and document analysis to give every team member an objective, verifiable contribution score.
+            <p className="mt-6 max-w-xl text-base leading-relaxed text-gray-400 sm:text-lg">
+              Apple Vision Pro clarity meets Linear speed. Fuse real-time voice intelligence, 6-state facial engagement, and written deliverables into one auditable score.
             </p>
 
-            {/* CTA buttons */}
-            <div className="flex flex-col sm:flex-row gap-4 mb-12">
+            {/* Primary & Secondary CTAs */}
+            <div className="mt-9 flex flex-wrap items-center gap-4">
               <button
+                type="button"
                 onClick={() => navigate('login')}
-                className="group relative flex items-center justify-center gap-2 bg-gradient-to-r from-blue-500 to-cyan-500 text-white px-8 py-4 rounded-2xl font-bold text-base shadow-2xl shadow-blue-500/30 hover:shadow-blue-500/50 hover:scale-[1.03] transition-all duration-200 overflow-hidden"
+                className="group inline-flex items-center gap-2.5 rounded-2xl bg-gradient-to-r from-cyan-400 via-blue-500 to-indigo-500 px-7 py-4 text-sm font-bold text-white shadow-[0_12px_40px_-8px_rgba(6,182,212,0.65)] transition-all duration-200 hover:scale-[1.03] hover:shadow-[0_16px_50px_-4px_rgba(6,182,212,0.85)]"
               >
-                <span className="relative z-10 flex items-center gap-2">
-                  Start Tracking Free
-                  <ArrowRight size={18} className="group-hover:translate-x-1 transition-transform duration-200" />
-                </span>
-                <div className="absolute inset-0 bg-gradient-to-r from-cyan-500 to-blue-600 opacity-0 group-hover:opacity-100 transition-opacity duration-300" />
+                Start Live Workspace
+                <ArrowRight size={16} className="transition-transform group-hover:translate-x-1" />
               </button>
+
+              <a
+                href="#showcase"
+                className="glass-pill inline-flex items-center gap-2 rounded-2xl px-6 py-4 text-sm font-semibold text-gray-200 transition-all duration-200 hover:border-cyan-400/40 hover:bg-white/[0.08] hover:text-white"
+              >
+                <Sparkles size={15} className="text-cyan-300" />
+                Explore Product Showcase
+              </a>
+
+              {!isInstalled && (
+                <button
+                  type="button"
+                  onClick={handleInstallApp}
+                  className="inline-flex items-center gap-2 rounded-2xl border border-white/[0.12] bg-white/[0.04] px-5 py-4 text-sm font-semibold text-zinc-200 transition-all duration-200 hover:border-indigo-400/40 hover:bg-white/[0.09] hover:text-white"
+                >
+                  <Download size={15} className="text-indigo-400" />
+                  Install App
+                </button>
+              )}
             </div>
 
-            {/* Trust signals */}
-            <div className="flex flex-wrap gap-5 text-sm text-gray-500">
+            {/* Hero Metrics Band */}
+            <div className="mt-12 grid max-w-xl grid-cols-3 gap-4 border-t border-white/[0.08] pt-7">
               {[
-                { icon: CheckCircle, label: 'No credit card' },
-                { icon: Lock, label: 'Secure & private' },
-                { icon: Zap, label: 'Setup in 5 min' },
-                { icon: Globe, label: 'Works anywhere' },
-              ].map(({ icon: Icon, label }) => (
-                <span key={label} className="flex items-center gap-1.5">
-                  <Icon size={13} className="text-emerald-500" />
-                  {label}
-                </span>
+                { val: 99, suffix: '%', label: 'Signal Attribution' },
+                { val: 6, suffix: ' States', label: 'Vision Intelligence' },
+                { val: 3, suffix: 's', label: 'Live Telemetry Sync' },
+              ].map((m) => (
+                <div key={m.label}>
+                  <p className="text-2xl font-black tracking-tight text-white sm:text-3xl">
+                    <Counter to={m.val} suffix={m.suffix} />
+                  </p>
+                  <p className="mt-1 text-xs font-medium text-gray-500">{m.label}</p>
+                </div>
               ))}
             </div>
           </div>
 
-          {/* Right — live mock dashboard */}
-          <div className="relative hidden lg:block">
-            {/* Glow */}
-            <div className="absolute -inset-8 bg-gradient-to-r from-blue-600/20 via-cyan-500/15 to-emerald-500/15 rounded-3xl blur-3xl" />
-            <div className="relative">
-              <MockDashboard />
-              {/* Floating badge */}
-              <div className="absolute -top-4 -right-4 bg-emerald-500 text-white text-xs font-black px-3 py-1.5 rounded-full shadow-lg shadow-emerald-500/40 flex items-center gap-1.5 animate-bounce">
-                <span className="w-2 h-2 rounded-full bg-white animate-pulse" />
-                LIVE
-              </div>
-              {/* Second floating badge */}
-              <div className="absolute -bottom-4 -left-4 bg-[#0D1626] border border-white/10 text-white text-xs font-semibold px-4 py-2.5 rounded-2xl shadow-xl flex items-center gap-2.5">
-                <div className="w-8 h-8 rounded-full bg-gradient-to-br from-blue-500 to-cyan-400 flex items-center justify-center">
-                  <TrendingUp size={14} className="text-white" />
-                </div>
-                <div>
-                  <p className="text-white font-bold text-sm">+18% fairness</p>
-                  <p className="text-gray-500 text-xs">vs last session</p>
-                </div>
-              </div>
-            </div>
+          {/* Right 5 columns — 3D Floating Glass Sphere */}
+          <div className="col-span-12 lg:col-span-5">
+            <GlassOrb3D />
           </div>
         </div>
       </section>
 
-      {/* ══════ STATS BAND ══════ */}
-      <section className="relative py-16 overflow-hidden">
-        <div className="absolute inset-0 bg-gradient-to-r from-blue-600/8 via-cyan-600/8 to-emerald-600/8" />
-        <div className="absolute inset-0 border-y border-white/5" />
-        <div className="relative max-w-5xl mx-auto px-6 grid grid-cols-2 md:grid-cols-4 gap-10 text-center">
-          {[
-            { val: 99, suffix: '%', label: 'Tracking Accuracy', color: 'from-blue-400 to-cyan-400' },
-            { val: 3, suffix: 's', label: 'Real-time Latency', color: 'from-cyan-400 to-emerald-400' },
-            { val: 6, suffix: '+', label: 'Contribution Signals', color: 'from-emerald-400 to-teal-400' },
-            { val: 100, suffix: '%', label: 'Bias Eliminated', color: 'from-amber-400 to-orange-400' },
-          ].map((s, i) => (
-            <Reveal key={i} delay={i * 80}>
-              <p className={`text-5xl md:text-6xl font-black text-transparent bg-clip-text bg-gradient-to-r ${s.color}`}>
-                <Counter to={s.val} suffix={s.suffix} />
+      {/* ══════ TRUSTED BY COMPANIES & RESEARCH LABS ══════ */}
+      <section className="relative z-20 border-y border-white/[0.06] bg-white/[0.015] py-10 backdrop-blur-xl">
+        <div className="mx-auto max-w-[1440px] px-6 lg:px-10">
+          <p className="text-center font-mono text-[11px] font-semibold uppercase tracking-[0.24em] text-gray-500">
+            Trusted by forward-thinking engineering squads &amp; research labs
+          </p>
+          <div className="mt-6 grid grid-cols-2 items-center gap-4 sm:grid-cols-3 lg:grid-cols-6">
+            {TRUSTED_ORGS.map((org) => (
+              <div
+                key={org}
+                className="flex items-center justify-center rounded-xl border border-white/[0.04] bg-white/[0.015] px-4 py-3 font-mono text-xs font-bold tracking-widest text-gray-400 transition-all duration-200 hover:border-cyan-400/25 hover:text-cyan-200"
+              >
+                {org}
+              </div>
+            ))}
+          </div>
+        </div>
+      </section>
+
+      {/* ══════ 12-COLUMN BENTO FEATURES GRID ══════ */}
+      <section id="features" className="relative z-20 py-24 lg:py-32">
+        <div className="mx-auto max-w-[1440px] px-6 lg:px-10">
+          <div className="mb-14 grid grid-cols-12 items-end gap-6">
+            <div className="col-span-12 lg:col-span-7">
+              <p className="font-mono text-xs font-bold uppercase tracking-[0.2em] text-cyan-400">
+                Core Architecture
               </p>
-              <p className="text-gray-500 text-sm mt-2 font-medium">{s.label}</p>
-            </Reveal>
-          ))}
-        </div>
-      </section>
-
-      {/* ══════ FEATURES ══════ */}
-      <section id="features" className="py-32 px-6">
-        <div className="max-w-7xl mx-auto">
-          <Reveal>
-            <div className="text-center mb-20">
-              <span className="text-blue-400 text-sm font-bold uppercase tracking-widest">Features</span>
-              <h2 className="text-4xl md:text-5xl font-black text-white mt-3 mb-4">Everything Your Team Needs</h2>
-              <p className="text-gray-400 max-w-xl mx-auto text-lg">A complete contribution intelligence platform — from voice to documents to fairness.</p>
+              <h2 className="mt-3 text-4xl font-black tracking-[-0.03em] text-white sm:text-5xl">
+                Built like spatial hardware.
+                <br />
+                <span className="text-gray-400">Engineered for fair teams.</span>
+              </h2>
             </div>
-          </Reveal>
+            <p className="col-span-12 text-sm leading-relaxed text-gray-400 lg:col-span-5">
+              Every module — from edge voice classification to private biometric vaults — is crafted for high-trust collaboration without surveillance friction.
+            </p>
+          </div>
 
-          <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-5">
-            {features.map((f, i) => (
-              <Reveal key={i} delay={i * 60}>
-                <div className="group relative bg-white/[0.02] border border-white/6 rounded-2xl p-7 hover:bg-white/[0.05] hover:border-white/15 transition-all duration-300 cursor-default overflow-hidden h-full">
-                  {/* Hover glow */}
-                  <div className={`absolute inset-0 rounded-2xl bg-gradient-to-br ${f.gradient} opacity-0 group-hover:opacity-5 transition-opacity duration-300 pointer-events-none`} />
-                  {/* Top line accent */}
-                  <div className={`absolute top-0 left-6 right-6 h-px bg-gradient-to-r ${f.gradient} opacity-0 group-hover:opacity-60 transition-opacity duration-300`} />
+          <div className="grid grid-cols-12 gap-5">
+            {BENTO_FEATURES.map((f) => {
+              const Icon = f.icon;
+              return (
+                <div
+                  key={f.title}
+                  className={`${f.span} glass-panel glass-border-glow group relative overflow-hidden rounded-[24px] p-7`}
+                >
+                  <div
+                    className={`pointer-events-none absolute left-6 right-6 top-0 h-px bg-gradient-to-r ${f.accent} opacity-40 transition-opacity group-hover:opacity-95`}
+                  />
+                  <div className="flex items-center justify-between">
+                    <span className="font-mono text-[10px] font-bold uppercase tracking-widest text-gray-400">
+                      {f.badge}
+                    </span>
+                    <span className="glass-pill rounded-full px-2.5 py-1 font-mono text-[10px] font-semibold text-cyan-300">
+                      {f.metric}
+                    </span>
+                  </div>
 
-                  <div className={`relative w-13 h-13 w-12 h-12 rounded-2xl flex items-center justify-center mb-6 bg-gradient-to-br ${f.gradient} shadow-lg ${f.glow} group-hover:scale-110 transition-transform duration-300`}>
-                    <f.icon size={22} className="text-white" />
+                  <div
+                    className={`mt-6 flex h-12 w-12 items-center justify-center rounded-2xl bg-gradient-to-br ${f.accent} shadow-lg transition-transform duration-300 group-hover:scale-110`}
+                  >
+                    <Icon size={21} className="text-white" />
                   </div>
-                  <h3 className="relative font-bold text-white text-base mb-2.5">{f.title}</h3>
-                  <p className="relative text-sm text-gray-400 leading-relaxed">{f.desc}</p>
-                  <div className={`relative mt-5 flex items-center gap-1 text-xs font-semibold opacity-0 group-hover:opacity-100 transition-all duration-300 translate-x-0 group-hover:translate-x-1 text-transparent bg-clip-text bg-gradient-to-r ${f.gradient}`}>
-                    Learn more <ChevronRight size={12} />
-                  </div>
+
+                  <h3 className="mt-5 text-xl font-bold tracking-tight text-white">{f.title}</h3>
+                  <p className="mt-2.5 max-w-2xl text-sm leading-relaxed text-gray-400">{f.desc}</p>
                 </div>
-              </Reveal>
-            ))}
+              );
+            })}
           </div>
         </div>
       </section>
 
-      {/* ══════ HOW IT WORKS ══════ */}
-      <section id="how-it-works" className="py-32 px-6 relative overflow-hidden">
-        <div className="absolute left-[-15%] top-1/2 -translate-y-1/2 w-[500px] h-[500px] rounded-full bg-blue-600/8 blur-[100px] pointer-events-none" />
-        <div className="max-w-5xl mx-auto relative">
-          <Reveal>
-            <div className="text-center mb-20">
-              <span className="text-cyan-400 text-sm font-bold uppercase tracking-widest">Process</span>
-              <h2 className="text-4xl md:text-5xl font-black text-white mt-3 mb-4">Up and Running in Minutes</h2>
-              <p className="text-gray-400 max-w-xl mx-auto text-lg">Four simple steps to turn any group into a trackable, fair team.</p>
-            </div>
-          </Reveal>
+      {/* ══════ INTERACTIVE PRODUCT SHOWCASE ══════ */}
+      <section id="showcase" className="relative z-20 py-20 lg:py-28">
+        <div className="mx-auto max-w-[1440px] px-6 lg:px-10">
+          <div className="mb-12 text-center">
+            <p className="font-mono text-xs font-bold uppercase tracking-[0.2em] text-indigo-400">
+              Interactive Showcase
+            </p>
+            <h2 className="mt-3 text-4xl font-black tracking-[-0.03em] text-white sm:text-5xl">
+              Inspect every layer of the engine.
+            </h2>
+            <p className="mx-auto mt-3 max-w-2xl text-sm text-gray-400">
+              Switch between live telemetry streams, multilingual speech verdicts, spatial expression states, and composite fairness scoring.
+            </p>
+          </div>
 
-          <div className="grid grid-cols-1 md:grid-cols-2 gap-5">
-            {steps.map((s, i) => (
-              <Reveal key={i} delay={i * 80}>
-                <div className="group relative bg-white/[0.025] border border-white/6 rounded-2xl p-8 hover:border-white/15 hover:bg-white/[0.04] transition-all duration-300 overflow-hidden h-full">
-                  {/* Big ghost number */}
-                  <div className="absolute top-0 right-0 text-[130px] font-black text-white/[0.025] leading-none select-none translate-x-6 -translate-y-6 group-hover:text-white/[0.04] transition-colors duration-300">
-                    {s.num}
-                  </div>
-                  <div className="relative flex items-start gap-5">
-                    <div className="w-12 h-12 rounded-2xl bg-gradient-to-br from-blue-500/20 to-cyan-500/20 border border-blue-500/20 flex items-center justify-center flex-shrink-0 group-hover:border-blue-500/40 transition-colors duration-300">
-                      <s.icon size={20} className="text-blue-400" />
-                    </div>
-                    <div>
-                      <span className="text-xs font-bold text-blue-400/70 mb-2 block">{s.num}</span>
-                      <h3 className="text-lg font-bold text-white mb-2">{s.title}</h3>
-                      <p className="text-gray-400 text-sm leading-relaxed">{s.desc}</p>
-                    </div>
-                  </div>
+          <InteractiveShowcase onLaunch={() => navigate('login')} />
+        </div>
+      </section>
+
+      {/* ══════ DESIGN SYSTEM SPEC STRIP ══════ */}
+      <section id="design-system" className="relative z-20 py-16">
+        <div className="mx-auto max-w-[1440px] px-6 lg:px-10">
+          <div className="glass-panel grid grid-cols-12 items-center gap-6 rounded-[24px] p-6 sm:p-8">
+            <div className="col-span-12 lg:col-span-4">
+              <div className="flex items-center gap-2 font-mono text-xs font-bold uppercase tracking-wider text-cyan-300">
+                <Layers size={14} />
+                2026 Spatial Design System
+              </div>
+              <h3 className="mt-2 text-2xl font-bold tracking-tight text-white">
+                Obsidian, Frost &amp; Aurora
+              </h3>
+              <p className="mt-1.5 text-xs leading-relaxed text-gray-400">
+                1440px 12-column responsive grid, Inter geometric typography, and specular 24px frosted glass elevation.
+              </p>
+            </div>
+
+            <div className="col-span-12 grid grid-cols-2 gap-3 sm:grid-cols-5 lg:col-span-8">
+              {[
+                { name: 'Obsidian', hex: '#030712', cls: 'bg-[#030712] border-white/20' },
+                { name: 'Electric Cyan', hex: '#06B6D4', cls: 'bg-[#06B6D4]' },
+                { name: 'Indigo Core', hex: '#6366F1', cls: 'bg-[#6366F1]' },
+                { name: 'Aurora Violet', hex: '#8B5CF6', cls: 'bg-[#8B5CF6]' },
+                { name: 'Signal Emerald', hex: '#10B981', cls: 'bg-[#10B981]' },
+              ].map((sw) => (
+                <div
+                  key={sw.name}
+                  className="rounded-xl border border-white/[0.08] bg-white/[0.025] p-3"
+                >
+                  <div className={`h-8 w-full rounded-lg border border-white/10 ${sw.cls}`} />
+                  <p className="mt-2 text-xs font-semibold text-white">{sw.name}</p>
+                  <p className="font-mono text-[10px] text-gray-500">{sw.hex}</p>
                 </div>
-              </Reveal>
-            ))}
+              ))}
+            </div>
           </div>
         </div>
       </section>
 
       {/* ══════ TESTIMONIALS ══════ */}
-      <section id="testimonials" className="py-32 px-6 relative">
-        <div className="absolute right-[-10%] top-1/2 -translate-y-1/2 w-[500px] h-[500px] rounded-full bg-emerald-600/6 blur-[100px] pointer-events-none" />
-        <div className="max-w-6xl mx-auto relative">
-          <Reveal>
-            <div className="text-center mb-16">
-              <span className="text-emerald-400 text-sm font-bold uppercase tracking-widest">Testimonials</span>
-              <h2 className="text-4xl md:text-5xl font-black text-white mt-3 mb-4">Loved by Teams Worldwide</h2>
-            </div>
-          </Reveal>
+      <section id="testimonials" className="relative z-20 py-24">
+        <div className="mx-auto max-w-[1440px] px-6 lg:px-10">
+          <div className="mb-12 text-center">
+            <p className="font-mono text-xs font-bold uppercase tracking-[0.2em] text-emerald-400">
+              Proven Impact
+            </p>
+            <h2 className="mt-3 text-4xl font-black tracking-[-0.03em] text-white sm:text-5xl">
+              Loved by high-performing teams.
+            </h2>
+          </div>
 
-          <div className="grid grid-cols-1 md:grid-cols-3 gap-6">
-            {testimonials.map((t, i) => (
-              <Reveal key={i} delay={i * 80}>
-                <div className="group relative bg-white/[0.025] border border-white/6 rounded-2xl p-7 hover:border-white/15 hover:bg-white/[0.04] transition-all duration-300 h-full flex flex-col">
-                  <div className="flex gap-1 mb-5">
+          <div className="grid grid-cols-12 gap-5">
+            {TESTIMONIALS.map((t) => (
+              <div
+                key={t.name}
+                className="col-span-12 md:col-span-4 glass-panel glass-border-glow flex flex-col rounded-[24px] p-7"
+              >
+                <div className="mb-5 flex items-center justify-between">
+                  <div className="flex gap-1">
                     {Array.from({ length: 5 }).map((_, j) => (
-                      <Star key={j} size={14} className="fill-amber-400 text-amber-400" />
+                      <Star key={j} size={13} className="fill-amber-400 text-amber-400" />
                     ))}
                   </div>
-                  <p className="text-gray-300 text-sm leading-relaxed flex-1 mb-6">"{t.quote}"</p>
-                  <div className="flex items-center gap-3 pt-5 border-t border-white/5">
-                    <div className={`w-10 h-10 rounded-full bg-gradient-to-br ${t.grad} flex items-center justify-center text-white font-bold text-sm flex-shrink-0 shadow-lg`}>
-                      {t.avatar}
-                    </div>
-                    <div>
-                      <p className="text-white font-semibold text-sm">{t.name}</p>
-                      <p className="text-gray-500 text-xs">{t.role}</p>
-                    </div>
+                  <span className="glass-pill rounded-full px-2.5 py-0.5 font-mono text-[10px] text-emerald-300">
+                    {t.badge}
+                  </span>
+                </div>
+                <p className="flex-1 text-sm leading-relaxed text-gray-300">&ldquo;{t.quote}&rdquo;</p>
+                <div className="mt-6 flex items-center gap-3 border-t border-white/[0.06] pt-5">
+                  <div
+                    className={`flex h-10 w-10 items-center justify-center rounded-full bg-gradient-to-br ${t.grad} text-xs font-bold text-white`}
+                  >
+                    {t.avatar}
+                  </div>
+                  <div>
+                    <p className="text-sm font-semibold text-white">{t.name}</p>
+                    <p className="text-xs text-gray-500">{t.role}</p>
                   </div>
                 </div>
-              </Reveal>
+              </div>
             ))}
           </div>
         </div>
       </section>
 
-      {/* ══════ CTA ══════ */}
-      <section className="py-32 px-6">
-        <Reveal>
-          <div className="max-w-4xl mx-auto text-center relative">
-            {/* Multi-layer glow */}
-            <div className="absolute inset-0 bg-gradient-to-r from-blue-600/20 via-cyan-500/15 to-emerald-600/20 rounded-3xl blur-3xl" />
-            <div className="absolute inset-2 bg-gradient-to-r from-blue-600/10 via-transparent to-emerald-600/10 rounded-3xl blur-2xl" />
+      {/* ══════ PRICING SECTION ══════ */}
+      <section id="pricing" className="relative z-20 py-24">
+        <div className="mx-auto max-w-[1440px] px-6 lg:px-10">
+          <div className="mb-12 flex flex-col items-center text-center">
+            <p className="font-mono text-xs font-bold uppercase tracking-[0.2em] text-cyan-400">
+              Transparent Pricing
+            </p>
+            <h2 className="mt-3 text-4xl font-black tracking-[-0.03em] text-white sm:text-5xl">
+              Start free. Scale to your whole campus.
+            </h2>
 
-            <div className="relative bg-gradient-to-br from-white/[0.04] to-white/[0.02] border border-white/10 rounded-3xl py-20 px-8 overflow-hidden">
-              {/* Decorative corner lines */}
-              <div className="absolute top-0 left-0 w-32 h-32 border-l-2 border-t-2 border-blue-500/20 rounded-tl-3xl" />
-              <div className="absolute bottom-0 right-0 w-32 h-32 border-r-2 border-b-2 border-emerald-500/20 rounded-br-3xl" />
-
-              <div className="inline-flex items-center gap-2 bg-emerald-400/10 border border-emerald-400/20 text-emerald-400 text-xs font-bold px-4 py-1.5 rounded-full mb-6">
-                <TrendingUp size={12} />
-                Join teams improving fairness today
-              </div>
-              <h2 className="text-4xl md:text-6xl font-black text-white mb-5 leading-tight">
-                Make Group Work
-                <br />
-                <span className="text-transparent bg-clip-text bg-gradient-to-r from-blue-400 via-cyan-400 to-emerald-400">
-                  Finally Fair.
-                </span>
-              </h2>
-              <p className="text-gray-400 mb-10 text-lg max-w-xl mx-auto">
-                Set up ContribuTrack in minutes. No hardware required to start — just sign up and begin tracking.
-              </p>
+            {/* Billing toggle */}
+            <div className="glass-pill mt-7 inline-flex items-center gap-1 rounded-2xl p-1">
               <button
-                onClick={() => navigate('login')}
-                className="group relative inline-flex items-center justify-center gap-2 bg-gradient-to-r from-blue-500 to-cyan-500 text-white px-10 py-5 rounded-2xl font-bold text-lg shadow-2xl shadow-blue-500/30 hover:shadow-blue-500/50 hover:scale-[1.03] transition-all duration-200 overflow-hidden"
+                type="button"
+                onClick={() => setAnnualBilling(false)}
+                className={`rounded-xl px-4 py-2 text-xs font-semibold transition-all ${
+                  !annualBilling ? 'bg-white text-gray-950 shadow' : 'text-gray-400 hover:text-white'
+                }`}
               >
-                <span className="relative z-10 flex items-center gap-2">
-                  Get Started — It's Free
-                  <ArrowRight size={20} className="group-hover:translate-x-1 transition-transform duration-200" />
-                </span>
-                <div className="absolute inset-0 bg-gradient-to-r from-cyan-500 to-blue-600 opacity-0 group-hover:opacity-100 transition-opacity duration-300" />
+                Monthly
               </button>
+              <button
+                type="button"
+                onClick={() => setAnnualBilling(true)}
+                className={`rounded-xl px-4 py-2 text-xs font-semibold transition-all ${
+                  annualBilling ? 'bg-white text-gray-950 shadow' : 'text-gray-400 hover:text-white'
+                }`}
+              >
+                Annual <span className="ml-1 text-emerald-600 font-bold">−20%</span>
+              </button>
+            </div>
+          </div>
 
-              <div className="flex flex-wrap justify-center gap-6 mt-10 text-xs text-gray-500">
-                {['No credit card', 'Free forever', 'Open API', 'Real-time data'].map((t) => (
-                  <span key={t} className="flex items-center gap-1.5">
-                    <CheckCircle size={12} className="text-emerald-500" />
-                    {t}
+          <div className="grid grid-cols-12 gap-5">
+            {PRICING_TIERS.map((tier) => {
+              const price = annualBilling ? tier.annual : tier.monthly;
+              return (
+                <div
+                  key={tier.name}
+                  className={`col-span-12 lg:col-span-4 relative flex flex-col rounded-[26px] p-7 transition-all duration-300 ${
+                    tier.popular
+                      ? 'glass-panel border-cyan-400/45 shadow-[0_0_50px_-15px_rgba(6,182,212,0.5)]'
+                      : 'glass-panel glass-border-glow'
+                  }`}
+                >
+                  {tier.popular && (
+                    <span className="absolute -top-3 right-6 rounded-full bg-gradient-to-r from-cyan-400 to-indigo-500 px-3 py-1 font-mono text-[10px] font-bold uppercase tracking-wider text-white shadow-lg">
+                      Most Popular
+                    </span>
+                  )}
+
+                  <h3 className="text-xl font-bold text-white">{tier.name}</h3>
+                  <p className="mt-1.5 text-xs text-gray-400">{tier.tagline}</p>
+
+                  <div className="my-6 flex items-baseline gap-1.5">
+                    <span className="text-5xl font-black tracking-tight text-white">
+                      ${price}
+                    </span>
+                    <span className="text-xs text-gray-500">/ month</span>
+                  </div>
+
+                  <ul className="mb-8 flex-1 space-y-3">
+                    {tier.features.map((feat) => (
+                      <li key={feat} className="flex items-start gap-2.5 text-xs text-gray-300">
+                        <Check size={14} className="mt-0.5 flex-shrink-0 text-cyan-400" />
+                        <span>{feat}</span>
+                      </li>
+                    ))}
+                  </ul>
+
+                  <button
+                    type="button"
+                    onClick={() => handleSelectTier(tier)}
+                    className={`w-full rounded-xl py-3 text-xs font-bold transition-all ${
+                      tier.popular
+                        ? 'bg-gradient-to-r from-cyan-400 via-blue-500 to-indigo-500 text-white shadow-lg shadow-cyan-500/25 hover:scale-[1.02]'
+                        : 'glass-pill text-white hover:border-cyan-400/40 hover:bg-white/[0.08]'
+                    }`}
+                  >
+                    {tier.cta}
+                  </button>
+                </div>
+              );
+            })}
+          </div>
+        </div>
+      </section>
+
+      {/* ══════ FAQ ACCORDION ══════ */}
+      <section id="faq" className="relative z-20 py-24">
+        <div className="mx-auto max-w-[1440px] px-6 lg:px-10">
+          <div className="grid grid-cols-12 gap-8">
+            <div className="col-span-12 lg:col-span-4">
+              <p className="font-mono text-xs font-bold uppercase tracking-[0.2em] text-indigo-400">
+                FAQ
+              </p>
+              <h2 className="mt-3 text-3xl font-black tracking-tight text-white sm:text-4xl">
+                Answers for builders &amp; educators.
+              </h2>
+              <p className="mt-3 text-sm leading-relaxed text-gray-400">
+                Everything you need to know about privacy, offline demo mode, free AI keys, and edge device pairing.
+              </p>
+            </div>
+
+            <div className="col-span-12 space-y-3 lg:col-span-8">
+              {FAQS.map((item, idx) => {
+                const open = openFaq === idx;
+                return (
+                  <div
+                    key={item.q}
+                    className="glass-panel overflow-hidden rounded-2xl transition-colors"
+                  >
+                    <button
+                      type="button"
+                      onClick={() => setOpenFaq(open ? null : idx)}
+                      className="flex w-full items-center justify-between gap-4 px-6 py-4 text-left"
+                    >
+                      <span className="text-sm font-semibold text-white">{item.q}</span>
+                      <ChevronDown
+                        size={16}
+                        className={`flex-shrink-0 text-gray-400 transition-transform duration-200 ${
+                          open ? 'rotate-180 text-cyan-300' : ''
+                        }`}
+                      />
+                    </button>
+                    {open && (
+                      <div className="border-t border-white/[0.06] px-6 py-4 text-xs leading-relaxed text-gray-400">
+                        {item.a}
+                      </div>
+                    )}
+                  </div>
+                );
+              })}
+            </div>
+          </div>
+        </div>
+      </section>
+
+      {/* ══════ FINAL CTA ══════ */}
+      <section className="relative z-20 pb-24 pt-8">
+        <div className="mx-auto max-w-[1440px] px-6 lg:px-10">
+          <div className="glass-panel relative overflow-hidden rounded-[32px] px-8 py-16 text-center sm:px-14">
+            <div className="pointer-events-none absolute -top-24 left-1/2 h-64 w-[520px] -translate-x-1/2 rounded-full bg-cyan-500/20 blur-[110px]" />
+            <div className="relative z-10 mx-auto max-w-2xl">
+              <div className="glass-pill mb-5 inline-flex items-center gap-2 rounded-full px-3.5 py-1 text-[11px] font-semibold text-emerald-300">
+                <Zap size={12} />
+                Zero-config browser workspace ready now
+              </div>
+              <h2 className="text-4xl font-black tracking-[-0.03em] text-white sm:text-5xl">
+                Make group contribution <span className="text-cyan-300">unmistakably fair.</span>
+              </h2>
+              <p className="mt-4 text-sm text-gray-400 sm:text-base">
+                Launch the live dashboard in one click — no credit card or API keys required.
+              </p>
+              <div className="mt-8 flex flex-wrap items-center justify-center gap-4">
+                <button
+                  type="button"
+                  onClick={() => navigate('login')}
+                  className="inline-flex items-center gap-2 rounded-2xl bg-gradient-to-r from-cyan-400 via-blue-500 to-indigo-500 px-8 py-4 text-sm font-bold text-white shadow-[0_12px_40px_-8px_rgba(6,182,212,0.65)] transition-all hover:scale-[1.03]"
+                >
+                  Open ContribuTrack
+                  <ArrowRight size={16} />
+                </button>
+              </div>
+              <div className="mt-7 flex flex-wrap justify-center gap-6 text-xs text-gray-500">
+                {[
+                  { icon: Lock, label: 'Signed biometric vault' },
+                  { icon: Globe, label: 'Multilingual speech AI' },
+                  { icon: Cpu, label: 'REST IoT ingest' },
+                ].map(({ icon: Icon, label }) => (
+                  <span key={label} className="flex items-center gap-1.5">
+                    <Icon size={12} className="text-cyan-400" />
+                    {label}
                   </span>
                 ))}
               </div>
             </div>
           </div>
-        </Reveal>
+        </div>
       </section>
 
-      {/* ══════ FOOTER ══════ */}
-      <footer className="border-t border-white/5 py-12 px-6">
-        <div className="max-w-7xl mx-auto flex flex-col md:flex-row items-center justify-between gap-6">
-          <div className="flex items-center gap-2.5">
-            <div className="w-8 h-8 rounded-xl bg-gradient-to-br from-blue-500 to-cyan-400 flex items-center justify-center shadow-lg shadow-blue-500/30">
-              <Activity size={15} className="text-white" />
+      {/* ══════ MODERN 12-COLUMN FOOTER ══════ */}
+      <footer className="relative z-20 border-t border-white/[0.06] bg-[#02050E]/90 py-14">
+        <div className="mx-auto grid max-w-[1440px] grid-cols-12 gap-8 px-6 lg:px-10">
+          <div className="col-span-12 md:col-span-5">
+            <div className="flex items-center gap-2.5">
+              <div className="flex h-8 w-8 items-center justify-center rounded-xl bg-gradient-to-br from-cyan-400 to-indigo-600">
+                <Activity size={15} className="text-white" />
+              </div>
+              <span className="font-black tracking-tight text-white">ContribuTrack</span>
             </div>
-            <span className="font-black text-white tracking-tight">ContribuTrack</span>
+            <p className="mt-3 max-w-sm text-xs leading-relaxed text-gray-500">
+              Multimodal IoT + AI contribution intelligence for research cohorts, engineering teams, and university capstone labs.
+            </p>
+            <div className="mt-4 inline-flex items-center gap-2 rounded-full border border-emerald-500/25 bg-emerald-500/10 px-3 py-1 font-mono text-[10px] text-emerald-300">
+              <span className="h-1.5 w-1.5 rounded-full bg-emerald-400 animate-pulse" />
+              All Edge Nodes Operational
+            </div>
           </div>
-          <p className="text-gray-600 text-sm">© 2024 ContribuTrack — AI-Powered Group Contribution Tracker</p>
-          <div className="flex gap-6 text-sm text-gray-600">
-            {['Privacy', 'Terms', 'API Docs'].map((t) => (
-              <a key={t} href="#" className="hover:text-gray-300 transition-colors duration-200">{t}</a>
-            ))}
+
+          <div className="col-span-6 md:col-span-2">
+            <p className="font-mono text-[10px] font-bold uppercase tracking-widest text-gray-500">
+              Platform
+            </p>
+            <ul className="mt-3 space-y-2 text-xs text-gray-400">
+              <li><a href="#features" className="hover:text-white">Features</a></li>
+              <li><a href="#showcase" className="hover:text-white">Live Showcase</a></li>
+              <li><a href="#pricing" className="hover:text-white">Pricing</a></li>
+            </ul>
+          </div>
+
+          <div className="col-span-6 md:col-span-2">
+            <p className="font-mono text-[10px] font-bold uppercase tracking-widest text-gray-500">
+              Developers
+            </p>
+            <ul className="mt-3 space-y-2 text-xs text-gray-400">
+              <li><a href="#design-system" className="hover:text-white">Design System</a></li>
+              <li><a href="#faq" className="hover:text-white">IoT API FAQ</a></li>
+              <li>
+                <button type="button" onClick={() => navigate('login')} className="hover:text-white">
+                  Sign In
+                </button>
+              </li>
+            </ul>
+          </div>
+
+          <div className="col-span-12 flex flex-col justify-between border-t border-white/[0.06] pt-6 text-xs text-gray-600 sm:flex-row md:col-span-12">
+            <p>© 2026 ContribuTrack. Built with multimodal telemetry.</p>
+            <p className="font-mono text-[11px] text-gray-600">Obsidian Spatial UI · 1440px Grid</p>
           </div>
         </div>
       </footer>
+
+      {/* ══════ STRIPE-STYLE GLASS CHECKOUT & TRIAL MODAL ══════ */}
+      {checkoutTier && (
+        <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/75 p-4 backdrop-blur-md">
+          <div className="glass-panel w-full max-w-md overflow-hidden rounded-3xl border border-cyan-400/30 bg-[#070E1F]/95 shadow-2xl">
+            <div className="flex items-center justify-between border-b border-white/10 px-6 py-4">
+              <div className="flex items-center gap-2">
+                <div className="flex h-8 w-8 items-center justify-center rounded-xl bg-gradient-to-br from-cyan-400 to-indigo-600">
+                  <CreditCard size={15} className="text-white" />
+                </div>
+                <div>
+                  <p className="text-xs font-bold text-white">ContribuTrack Checkout</p>
+                  <p className="font-mono text-[10px] text-cyan-300">
+                    {checkoutTier.name} · {annualBilling ? 'Annual (−20%)' : 'Monthly'}
+                  </p>
+                </div>
+              </div>
+              <button
+                type="button"
+                onClick={() => setCheckoutTier(null)}
+                className="rounded-lg p-1.5 text-gray-400 hover:bg-white/10 hover:text-white"
+              >
+                <X size={15} />
+              </button>
+            </div>
+
+            <div className="space-y-5 p-6">
+              <div className="rounded-2xl border border-white/10 bg-white/[0.03] p-4">
+                <div className="flex items-baseline justify-between">
+                  <span className="text-sm font-bold text-white">{checkoutTier.name} Plan</span>
+                  <span className="font-mono text-2xl font-black text-cyan-300">
+                    ${annualBilling ? checkoutTier.annual : checkoutTier.monthly}
+                    <span className="text-xs font-normal text-gray-400"> / mo</span>
+                  </span>
+                </div>
+                <p className="mt-1 text-[11px] text-gray-400">{checkoutTier.tagline}</p>
+                <ul className="mt-3 space-y-1.5 border-t border-white/[0.06] pt-3">
+                  {checkoutTier.features.map((feat) => (
+                    <li key={feat} className="flex items-center gap-2 text-[11px] text-gray-300">
+                      <Check size={12} className="flex-shrink-0 text-emerald-400" />
+                      {feat}
+                    </li>
+                  ))}
+                </ul>
+              </div>
+
+              <div className="rounded-xl border border-amber-500/25 bg-amber-500/[0.06] p-3 text-[11px] leading-relaxed text-amber-200">
+                <strong>No card collected in demo mode:</strong> Workspace owners can plug in a live Stripe or Razorpay link under{' '}
+                <span className="font-mono">Settings → Billing &amp; Plans</span> to accept real payments.
+              </div>
+
+              <button
+                type="button"
+                onClick={() => {
+                  const s = loadSettings();
+                  saveSettings({ ...s, planTier: checkoutTier.id });
+                  setCheckoutTier(null);
+                  navigate('login');
+                }}
+                className="flex w-full items-center justify-center gap-2 rounded-xl bg-gradient-to-r from-cyan-400 via-blue-500 to-indigo-500 py-3 text-xs font-bold text-white shadow-lg shadow-cyan-500/25 transition-all hover:scale-[1.01]"
+              >
+                <Sparkles size={14} />
+                Activate 14-Day Free Trial &amp; Open Workspace
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
+
+      <InstallAppModal
+        open={installModalOpen}
+        onClose={() => setInstallModalOpen(false)}
+        canNativeInstall={canNativeInstall}
+        platform={platform}
+        onInstall={promptInstall}
+      />
     </div>
   );
 }

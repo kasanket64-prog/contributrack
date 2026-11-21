@@ -1,4 +1,4 @@
-import { useState } from 'react';
+import { useId, useState } from 'react';
 
 interface DataPoint {
   label: string;
@@ -12,34 +12,64 @@ interface LineChartProps {
   label?: string;
 }
 
-export default function LineChart({ data, color = '#3B82F6', height = 140, label }: LineChartProps) {
+export default function LineChart({ data, color = '#818CF8', height = 220, label }: LineChartProps) {
   const [tooltip, setTooltip] = useState<{ x: number; y: number; val: number; lbl: string } | null>(null);
-  const width = 400;
-  const pad = { top: 16, right: 16, bottom: 28, left: 34 };
+  const chartId = useId();
+  const width = 640;
+  const pad = { top: 20, right: 20, bottom: 32, left: 42 };
   const chartW = width - pad.left - pad.right;
   const chartH = height - pad.top - pad.bottom;
 
   if (data.length < 2) {
     return (
-      <div className="flex flex-col items-center justify-center text-gray-600 gap-1" style={{ height }}>
-        <span className="text-sm">Collecting data…</span>
-        <span className="text-xs">Waiting for IoT readings</span>
+      <div className="flex flex-col items-center justify-center text-zinc-500 gap-1" style={{ height }}>
+        <span className="text-xs font-medium text-zinc-400">Waiting for multiple checkpoints…</span>
+        <span className="text-[11px] text-zinc-500">Additional sensor readings will plot here</span>
       </div>
     );
   }
 
-  const max = Math.max(...data.map((d) => d.value), 1);
-  const range = max || 1;
-  const gradId = `lgrad-${color.replace('#', '')}`;
-  const glowId = `lglow-${color.replace('#', '')}`;
+  const safeData = data.map((d) => ({
+    label: String(d.label ?? ''),
+    value: Number.isFinite(d.value) ? d.value : 0,
+  }));
 
-  const pts = data.map((d, i) => ({
-    x: pad.left + (i / (data.length - 1)) * chartW,
-    y: pad.top + chartH - (d.value / range) * chartH,
+  const rawMin = Math.min(...safeData.map((d) => d.value));
+  const rawMax = Math.max(...safeData.map((d) => d.value));
+  const isBinary = safeData.every((d) => d.value === 0 || d.value === 1) && rawMax <= 1 && rawMin >= 0;
+
+  let yMin = 0;
+  let yMax = 100;
+
+  if (isBinary) {
+    yMin = 0;
+    yMax = 1;
+  } else if (rawMin >= 0 && rawMax <= 100) {
+    if (rawMax - rawMin < 24) {
+      yMin = Math.max(0, Math.floor((rawMin - 12) / 5) * 5);
+      yMax = Math.min(100, Math.ceil((rawMax + 12) / 5) * 5);
+      if (yMax <= yMin) yMax = Math.min(100, yMin + 10);
+    } else {
+      yMin = Math.max(0, Math.floor((rawMin - 5) / 5) * 5);
+      yMax = Math.min(100, Math.ceil((rawMax + 5) / 5) * 5);
+      if (yMax <= yMin) yMax = Math.min(100, yMin + 10);
+    }
+  } else {
+    const span = Math.max(1, rawMax - rawMin);
+    yMin = Math.max(0, Math.floor(rawMin - span * 0.2));
+    yMax = Math.ceil(rawMax + span * 0.2);
+    if (yMax <= yMin) yMax = yMin + 10;
+  }
+
+  const range = Math.max(0.0001, yMax - yMin);
+  const gradId = `${chartId}-lgrad`;
+
+  const pts = safeData.map((d, i) => ({
+    x: pad.left + (i / (safeData.length - 1)) * chartW,
+    y: pad.top + chartH - ((d.value - yMin) / range) * chartH,
     d,
   }));
 
-  // Smooth bezier path
   const smoothPath = pts.reduce((path, pt, i) => {
     if (i === 0) return `M ${pt.x} ${pt.y}`;
     const prev = pts[i - 1];
@@ -49,12 +79,13 @@ export default function LineChart({ data, color = '#3B82F6', height = 140, label
 
   const areaPath = `${smoothPath} L ${pts[pts.length - 1].x} ${pad.top + chartH} L ${pts[0].x} ${pad.top + chartH} Z`;
 
-  const yTicks = [0, Math.round(max / 2), max];
-  const xStep = Math.max(1, Math.floor(data.length / 5));
+  const midTick = isBinary ? 0.5 : Math.round(((yMin + yMax) / 2) * 10) / 10;
+  const yTicks = isBinary ? [0, 1] : [yMin, midTick, yMax];
+  const xStep = Math.max(1, Math.floor(safeData.length / 6));
 
   return (
     <div>
-      {label && <p className="text-xs text-gray-500 mb-1">{label}</p>}
+      {label && <p className="text-xs text-zinc-400 mb-1.5">{label}</p>}
       <div className="relative">
         <svg
           viewBox={`0 0 ${width} ${height}`}
@@ -64,77 +95,144 @@ export default function LineChart({ data, color = '#3B82F6', height = 140, label
         >
           <defs>
             <linearGradient id={gradId} x1="0" y1="0" x2="0" y2="1">
-              <stop offset="0%" stopColor={color} stopOpacity="0.25" />
-              <stop offset="100%" stopColor={color} stopOpacity="0.01" />
+              <stop offset="0%" stopColor={color} stopOpacity="0.16" />
+              <stop offset="100%" stopColor={color} stopOpacity="0.0" />
             </linearGradient>
-            <filter id={glowId}>
-              <feGaussianBlur stdDeviation="2.5" result="blur" />
-              <feMerge><feMergeNode in="blur" /><feMergeNode in="SourceGraphic" /></feMerge>
-            </filter>
           </defs>
 
-          {/* Grid lines */}
+          {/* Hairline horizontal grid lines */}
           {yTicks.map((t, i) => {
-            const y = pad.top + chartH - (t / range) * chartH;
+            const y = pad.top + chartH - ((t - yMin) / range) * chartH;
             return (
               <g key={i}>
-                <line x1={pad.left} y1={y} x2={pad.left + chartW} y2={y} stroke="rgba(0,0,0,0.05)" strokeWidth={1} strokeDasharray="4 4" />
-                <text x={pad.left - 5} y={y + 4} textAnchor="end" fontSize={8} fill="#9CA3AF">{t}</text>
+                <line
+                  x1={pad.left}
+                  y1={y}
+                  x2={pad.left + chartW}
+                  y2={y}
+                  stroke="rgba(255,255,255,0.06)"
+                  strokeWidth={1}
+                />
+                <text
+                  x={pad.left - 8}
+                  y={y + 4}
+                  textAnchor="end"
+                  fontSize={11}
+                  fontWeight={500}
+                  fill="#71717A"
+                >
+                  {t}
+                </text>
               </g>
             );
           })}
 
-          {/* Area fill */}
+          {/* Subtle gradient fill under curve */}
           <path d={areaPath} fill={`url(#${gradId})`} />
 
-          {/* Glow line (behind) */}
-          <path d={smoothPath} fill="none" stroke={color} strokeWidth={4} strokeLinecap="round" strokeLinejoin="round" opacity={0.2} filter={`url(#${glowId})`} />
+          {/* Clean primary stroke */}
+          <path
+            d={smoothPath}
+            fill="none"
+            stroke={color}
+            strokeWidth={2}
+            strokeLinecap="round"
+            strokeLinejoin="round"
+          />
 
-          {/* Main line */}
-          <path d={smoothPath} fill="none" stroke={color} strokeWidth={2} strokeLinecap="round" strokeLinejoin="round" />
+          {/* Interactive nodes */}
+          {pts.map((p, i) => {
+            const active = tooltip?.lbl === p.d.label;
+            return (
+              <g key={i}>
+                <circle
+                  cx={p.x}
+                  cy={p.y}
+                  r={14}
+                  fill="transparent"
+                  style={{ cursor: 'crosshair' }}
+                  onMouseEnter={() => setTooltip({ x: p.x, y: p.y, val: p.d.value, lbl: p.d.label })}
+                />
+                {(pts.length <= 12 || active) && (
+                  <circle
+                    cx={p.x}
+                    cy={p.y}
+                    r={active ? 4.5 : 3.5}
+                    fill={active ? '#FAFAFA' : color}
+                    stroke="#111114"
+                    strokeWidth={2}
+                  />
+                )}
+              </g>
+            );
+          })}
 
-          {/* Dots & hover targets */}
-          {pts.map((p, i) => (
-            <g key={i}>
-              <circle
-                cx={p.x} cy={p.y} r={12}
-                fill="transparent"
-                style={{ cursor: 'crosshair' }}
-                onMouseEnter={() => setTooltip({ x: p.x, y: p.y, val: p.d.value, lbl: p.d.label })}
-              />
-              {(tooltip?.lbl === p.d.label || pts.length <= 8) && (
-                <circle cx={p.x} cy={p.y} r={3.5} fill={color} stroke="white" strokeWidth={2} />
-              )}
-            </g>
-          ))}
-
-          {/* X labels */}
-          {pts.filter((_, i) => i % xStep === 0 || i === pts.length - 1).map((p, i) => (
-            <text key={i} x={p.x} y={pad.top + chartH + 18} textAnchor="middle" fontSize={8} fill="#9CA3AF">
-              {p.d.label}
-            </text>
-          ))}
-
-          {/* Tooltip */}
-          {tooltip && (
-            <g>
-              <line x1={tooltip.x} y1={pad.top} x2={tooltip.x} y2={pad.top + chartH} stroke={color} strokeWidth={1} strokeDasharray="3 3" opacity={0.4} />
-              <rect
-                x={tooltip.x - 26} y={tooltip.y - 30}
-                width={52} height={22} rx={5}
-                fill="white"
-                stroke={color}
-                strokeWidth={0.8}
-                strokeOpacity={0.5}
-              />
-              <text x={tooltip.x} y={tooltip.y - 15} textAnchor="middle" fontSize={9} fontWeight="800" fill={color}>
-                {tooltip.val}
+          {/* Readable X axis labels */}
+          {pts
+            .filter((_, i) => i % xStep === 0 || i === pts.length - 1)
+            .map((p, i) => (
+              <text
+                key={i}
+                x={p.x}
+                y={pad.top + chartH + 22}
+                textAnchor="middle"
+                fontSize={11}
+                fontWeight={500}
+                fill="#71717A"
+              >
+                {p.d.label}
               </text>
-              <text x={tooltip.x} y={tooltip.y - 6} textAnchor="middle" fontSize={7} fill="#6B7280">
-                #{tooltip.lbl}
-              </text>
-            </g>
-          )}
+            ))}
+
+          {/* Obsidian tooltip */}
+          {tooltip && (() => {
+            const boxW = 84;
+            const boxH = 38;
+            const boxX = Math.max(pad.left, Math.min(width - pad.right - boxW, tooltip.x - boxW / 2));
+            const boxY = Math.max(4, tooltip.y - boxH - 10);
+            return (
+              <g>
+                <line
+                  x1={tooltip.x}
+                  y1={pad.top}
+                  x2={tooltip.x}
+                  y2={pad.top + chartH}
+                  stroke="rgba(255,255,255,0.16)"
+                  strokeWidth={1}
+                  strokeDasharray="3 3"
+                />
+                <rect
+                  x={boxX}
+                  y={boxY}
+                  width={boxW}
+                  height={boxH}
+                  rx={8}
+                  fill="#18181B"
+                  stroke="rgba(255,255,255,0.14)"
+                  strokeWidth={1}
+                />
+                <text
+                  x={boxX + boxW / 2}
+                  y={boxY + 15}
+                  textAnchor="middle"
+                  fontSize={11}
+                  fontWeight="700"
+                  fill="#FAFAFA"
+                >
+                  {tooltip.val}
+                </text>
+                <text
+                  x={boxX + boxW / 2}
+                  y={boxY + 29}
+                  textAnchor="middle"
+                  fontSize={10}
+                  fill="#A1A1AA"
+                >
+                  {tooltip.lbl}
+                </text>
+              </g>
+            );
+          })()}
         </svg>
       </div>
     </div>

@@ -6,11 +6,11 @@ interface Bar {
   color?: string;
 }
 
-const DEFAULT_COLORS = ['#3B82F6', '#10B981', '#F59E0B', '#EF4444', '#06B6D4', '#F97316'];
+const DEFAULT_COLORS = ['#818CF8', '#34D399', '#FBBF24', '#F87171', '#38BDF8', '#A78BFA'];
 
 export default function BarChart({
   data,
-  height = 160,
+  height = 175,
   maxValue,
 }: {
   data: Bar[];
@@ -20,27 +20,26 @@ export default function BarChart({
   const [hovered, setHovered] = useState<number | null>(null);
   const chartId = useId();
 
-  const width = 400;
-  const pad = { top: 16, right: 16, bottom: 36, left: 36 };
+  const width = 520;
+  const pad = { top: 24, right: 16, bottom: 34, left: 42 };
   const chartW = width - pad.left - pad.right;
   const chartH = height - pad.top - pad.bottom;
 
   if (!data.length) {
     return (
-      <div className="flex items-center justify-center text-gray-600 text-sm" style={{ height }}>
+      <div className="flex items-center justify-center text-zinc-500 text-xs" style={{ height }}>
         No data
       </div>
     );
   }
 
-  // Sanitize values to avoid NaN / invalid SVG rendering
   const safeData = data.map((d) => ({
     ...d,
-    value: Number.isFinite(d.value) ? d.value : 0,
+    value: Number.isFinite(d.value) ? Math.max(0, d.value) : 0,
   }));
 
   const max = Math.max(maxValue ?? Math.max(...safeData.map((d) => d.value), 1), 1);
-  const barW = Math.min(40, (chartW / safeData.length) * 0.55);
+  const barW = Math.min(44, (chartW / safeData.length) * 0.52);
   const gap = chartW / safeData.length;
   const yTicks = [0, Math.round(max / 2), max];
 
@@ -56,14 +55,14 @@ export default function BarChart({
           const c = d.color ?? DEFAULT_COLORS[i % DEFAULT_COLORS.length];
           return (
             <linearGradient key={i} id={`${chartId}-bgrad-${i}`} x1="0" y1="0" x2="0" y2="1">
-              <stop offset="0%" stopColor={c} stopOpacity="1" />
-              <stop offset="100%" stopColor={c} stopOpacity="0.5" />
+              <stop offset="0%" stopColor={c} stopOpacity="0.95" />
+              <stop offset="100%" stopColor={c} stopOpacity="0.55" />
             </linearGradient>
           );
         })}
       </defs>
 
-      {/* Grid lines */}
+      {/* Hairline dashed horizontal gridlines */}
       {yTicks.map((t, i) => {
         const y = pad.top + chartH - (t / max) * chartH;
         return (
@@ -73,11 +72,11 @@ export default function BarChart({
               y1={y}
               x2={pad.left + chartW}
               y2={y}
-              stroke="rgba(0,0,0,0.05)"
+              stroke="rgba(255,255,255,0.06)"
               strokeWidth={1}
               strokeDasharray="4 4"
             />
-            <text x={pad.left - 5} y={y + 4} textAnchor="end" fontSize={8} fill="#9CA3AF">
+            <text x={pad.left - 8} y={y + 4} textAnchor="end" fontSize={11} fontWeight={500} fill="#71717A">
               {t}
             </text>
           </g>
@@ -86,87 +85,66 @@ export default function BarChart({
 
       {/* Bars */}
       {safeData.map((d, i) => {
-        const bh = Math.max(2, (d.value / max) * chartH);
+        const bh = Math.max(3, (d.value / max) * chartH);
         const x = pad.left + gap * i + (gap - barW) / 2;
         const y = pad.top + chartH - bh;
-        const color = d.color ?? DEFAULT_COLORS[i % DEFAULT_COLORS.length];
         const isHovered = hovered === i;
 
         return (
-          <g
-            key={i}
-            onMouseEnter={() => setHovered(i)}
-            style={{ cursor: 'pointer' }}
-          >
-            {isHovered && (
-              <rect
-                x={x - 2}
-                y={y - 2}
-                width={barW + 4}
-                height={bh + 4}
-                rx={5}
-                fill={color}
-                opacity={0.12}
-                style={{ filter: 'blur(4px)' }}
-              />
-            )}
-
+          <g key={i} onMouseEnter={() => setHovered(i)} style={{ cursor: 'pointer' }}>
             <rect
               x={x}
               y={y}
               width={barW}
               height={bh}
               fill={`url(#${chartId}-bgrad-${i})`}
-              rx={4}
-              opacity={hovered === null || isHovered ? 1 : 0.4}
-              style={{ transition: 'opacity 0.2s ease' }}
+              rx={6}
+              opacity={hovered === null || isHovered ? 1 : 0.38}
+              style={{ transition: 'opacity 0.15s ease' }}
             />
-
-            <rect x={x} y={y} width={barW} height={3} rx={3} fill={color} opacity={0.9} />
 
             <text
               x={x + barW / 2}
-              y={pad.top + chartH + 18}
+              y={pad.top + chartH + 22}
               textAnchor="middle"
-              fontSize={8}
-              fill={isHovered ? '#111827' : '#6B7280'}
+              fontSize={11}
+              fontWeight={500}
+              fill={isHovered ? '#FAFAFA' : '#71717A'}
             >
-              {d.label.length > 7 ? `${d.label.slice(0, 6)}…` : d.label}
+              {d.label.length > 9 ? `${d.label.slice(0, 8)}…` : d.label}
             </text>
 
             {isHovered ? (
-              <>
+              <g>
                 <rect
-                  x={x - 4}
-                  y={y - 22}
-                  width={barW + 8}
-                  height={16}
-                  rx={3}
-                  fill="white"
-                  stroke={color}
-                  strokeWidth={0.8}
-                  strokeOpacity={0.5}
+                  x={Math.max(pad.left, Math.min(width - pad.right - 52, x + barW / 2 - 26))}
+                  y={Math.max(2, y - 24)}
+                  width={52}
+                  height={20}
+                  rx={6}
+                  fill="#18181B"
+                  stroke="rgba(255,255,255,0.16)"
+                  strokeWidth={1}
                 />
                 <text
-                  x={x + barW / 2}
-                  y={y - 11}
+                  x={Math.max(pad.left + 26, Math.min(width - pad.right - 26, x + barW / 2))}
+                  y={Math.max(15, y - 10)}
                   textAnchor="middle"
-                  fontSize={9}
-                  fontWeight="800"
-                  fill={color}
+                  fontSize={11}
+                  fontWeight="700"
+                  fill="#FAFAFA"
                 >
                   {d.value}
                 </text>
-              </>
+              </g>
             ) : (
               <text
                 x={x + barW / 2}
-                y={y - 6}
+                y={y - 7}
                 textAnchor="middle"
-                fontSize={8}
-                fontWeight="700"
-                fill={color}
-                opacity={0.7}
+                fontSize={11}
+                fontWeight="600"
+                fill="#A1A1AA"
               >
                 {d.value}
               </text>
@@ -180,7 +158,7 @@ export default function BarChart({
         y1={pad.top + chartH}
         x2={pad.left + chartW}
         y2={pad.top + chartH}
-        stroke="rgba(0,0,0,0.06)"
+        stroke="rgba(255,255,255,0.08)"
         strokeWidth={1}
       />
     </svg>

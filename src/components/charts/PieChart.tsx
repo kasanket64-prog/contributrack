@@ -1,4 +1,4 @@
-import { useId, useMemo, useState } from 'react';
+import { useMemo, useState } from 'react';
 
 interface Slice {
   label: string;
@@ -26,9 +26,8 @@ function arcPath(cx: number, cy: number, r: number, start: number, end: number) 
   return `M ${cx} ${cy} L ${s.x} ${s.y} A ${r} ${r} 0 ${large} 1 ${e.x} ${e.y} Z`;
 }
 
-export default function PieChart({ data, size = 200 }: PieChartProps) {
+export default function PieChart({ data, size = 180 }: PieChartProps) {
   const [hovered, setHovered] = useState<number | null>(null);
-  const chartId = useId();
 
   const safeData = useMemo(
     () =>
@@ -36,20 +35,17 @@ export default function PieChart({ data, size = 200 }: PieChartProps) {
         .map((d) => ({
           label: String(d?.label ?? ''),
           value: Number.isFinite(d?.value) ? Math.max(0, d.value) : 0,
-          color: d?.color || '#3B82F6',
+          color: d?.color || '#818CF8',
         }))
         .filter((d) => d.value > 0),
-    [data]
+    [data],
   );
 
   const total = safeData.reduce((sum, d) => sum + d.value, 0);
 
   if (total === 0) {
     return (
-      <div
-        className="flex items-center justify-center text-sm text-gray-600"
-        style={{ width: size, height: size }}
-      >
+      <div className="flex items-center justify-center text-xs text-zinc-500" style={{ width: size, height: size }}>
         No data
       </div>
     );
@@ -57,8 +53,8 @@ export default function PieChart({ data, size = 200 }: PieChartProps) {
 
   const cx = size / 2;
   const cy = size / 2;
-  const r = size / 2 - 12;
-  const ir = r * 0.52;
+  const r = size / 2 - 10;
+  const ir = r * 0.58;
 
   let currentAngle = 0;
 
@@ -81,101 +77,49 @@ export default function PieChart({ data, size = 200 }: PieChartProps) {
   const active = hovered !== null ? slices[hovered] : null;
 
   return (
-    <div className="flex items-center gap-5">
-      <div
-        className="relative flex-shrink-0"
-        style={{ width: size, height: size }}
-      >
+    <div className="flex items-center gap-6">
+      <div className="relative flex-shrink-0" style={{ width: size, height: size }}>
         <svg width={size} height={size} viewBox={`0 0 ${size} ${size}`}>
-          <defs>
-            {slices.map((s) => (
-              <filter key={s.idx} id={`${chartId}-glow-${s.idx}`}>
-                <feGaussianBlur stdDeviation="3" result="coloredBlur" />
-                <feMerge>
-                  <feMergeNode in="coloredBlur" />
-                  <feMergeNode in="SourceGraphic" />
-                </feMerge>
-              </filter>
-            ))}
-          </defs>
-
           {slices.map((s) =>
             s.angle > 0.5 ? (
               <path
                 key={s.idx}
                 d={arcPath(cx, cy, r, s.start, s.end)}
                 fill={s.color}
-                stroke="#0D1626"
+                stroke="#111114"
                 strokeWidth={2.5}
-                opacity={hovered === null || hovered === s.idx ? 1 : 0.35}
-                filter={hovered === s.idx ? `url(#${chartId}-glow-${s.idx})` : undefined}
+                opacity={hovered === null || hovered === s.idx ? 0.92 : 0.3}
                 style={{
-                  transform: hovered === s.idx ? 'scale(1.04)' : 'scale(1)',
+                  transform: hovered === s.idx ? 'scale(1.03)' : 'scale(1)',
                   transformOrigin: `${cx}px ${cy}px`,
-                  transition: 'all 0.2s ease',
+                  transition: 'opacity 0.15s ease, transform 0.15s ease',
                   cursor: 'pointer',
                 }}
                 onMouseEnter={() => setHovered(s.idx)}
                 onMouseLeave={() => setHovered(null)}
               />
-            ) : null
+            ) : null,
           )}
 
-          {/* Donut hole */}
-          <circle cx={cx} cy={cy} r={ir} fill="white" />
+          {/* Seamless Obsidian donut center */}
+          <circle cx={cx} cy={cy} r={ir} fill="#111114" />
 
-          {/* Center content */}
           {active ? (
             <>
-              <text
-                x={cx}
-                y={cy - 10}
-                textAnchor="middle"
-                fontSize={13}
-                fontWeight="800"
-                fill={active.color}
-              >
+              <text x={cx} y={cy - 6} textAnchor="middle" fontSize={16} fontWeight="700" fill="#FAFAFA">
                 {active.pct}%
               </text>
-              <text
-                x={cx}
-                y={cy + 5}
-                textAnchor="middle"
-                fontSize={9}
-                fill="#6B7280"
-              >
-                {active.label.length > 10 ? `${active.label.slice(0, 10)}…` : active.label}
-              </text>
-              <text
-                x={cx}
-                y={cy + 18}
-                textAnchor="middle"
-                fontSize={8}
-                fill="#9CA3AF"
-              >
-                {active.value} readings
+              <text x={cx} y={cy + 11} textAnchor="middle" fontSize={10} fill="#A1A1AA">
+                {active.label.length > 12 ? `${active.label.slice(0, 12)}…` : active.label}
               </text>
             </>
           ) : (
             <>
-              <text
-                x={cx}
-                y={cy - 6}
-                textAnchor="middle"
-                fontSize={16}
-                fontWeight="900"
-                fill="#111827"
-              >
-                {total}
+              <text x={cx} y={cy - 3} textAnchor="middle" fontSize={18} fontWeight="700" fill="#FAFAFA">
+                {slices.length}
               </text>
-              <text
-                x={cx}
-                y={cy + 9}
-                textAnchor="middle"
-                fontSize={9}
-                fill="#9CA3AF"
-              >
-                readings
+              <text x={cx} y={cy + 13} textAnchor="middle" fontSize={10} fill="#71717A">
+                members
               </text>
             </>
           )}
@@ -186,27 +130,15 @@ export default function PieChart({ data, size = 200 }: PieChartProps) {
         {slices.map((s) => (
           <div
             key={s.idx}
-            className="group flex cursor-default items-center gap-2"
+            className="flex cursor-default items-center gap-2.5 text-xs"
             onMouseEnter={() => setHovered(s.idx)}
             onMouseLeave={() => setHovered(null)}
           >
-            <span
-              className="h-2.5 w-2.5 flex-shrink-0 rounded-full transition-all"
-              style={{
-                backgroundColor: s.color,
-                boxShadow: hovered === s.idx ? `0 0 8px ${s.color}` : 'none',
-              }}
-            />
-            <span
-              className={`max-w-[90px] truncate text-xs transition-colors ${
-                hovered === s.idx ? 'text-gray-900' : 'text-gray-500'
-              }`}
-            >
+            <span className="h-2.5 w-2.5 flex-shrink-0 rounded-full" style={{ backgroundColor: s.color }} />
+            <span className={`max-w-[130px] truncate transition-colors ${hovered === s.idx ? 'text-white' : 'text-zinc-400'}`}>
               {s.label}
             </span>
-            <span className="ml-auto text-xs font-black" style={{ color: s.color }}>
-              {s.pct}%
-            </span>
+            <span className="ml-auto font-mono font-semibold tabular-nums text-zinc-200">{s.pct}%</span>
           </div>
         ))}
       </div>

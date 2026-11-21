@@ -1,6 +1,17 @@
 import { useState } from 'react';
-import { Activity, Mail, Lock, Eye, EyeOff, AlertCircle, Loader } from 'lucide-react';
-import { supabase } from '../lib/supabase';
+import {
+  Activity,
+  Mail,
+  Lock,
+  Eye,
+  EyeOff,
+  AlertCircle,
+  Loader,
+  Sparkles,
+  CheckCircle2,
+  ArrowLeft,
+} from 'lucide-react';
+import { supabase, IS_DEMO_MODE, DEMO_EMAIL, DEMO_PASSWORD } from '../lib/supabase';
 import type { Page } from '../lib/types';
 
 interface Props {
@@ -23,9 +34,18 @@ export default function Auth({ navigate, onLogin }: Props) {
     setError('');
     setSuccess('');
 
-    if (!email || !password) { setError('Please fill in all fields.'); return; }
-    if (tab === 'register' && password !== confirmPassword) { setError('Passwords do not match.'); return; }
-    if (password.length < 6) { setError('Password must be at least 6 characters.'); return; }
+    if (!email || !password) {
+      setError('Please fill in all fields.');
+      return;
+    }
+    if (tab === 'register' && password !== confirmPassword) {
+      setError('Passwords do not match.');
+      return;
+    }
+    if (password.length < 6) {
+      setError('Password must be at least 6 characters.');
+      return;
+    }
 
     setLoading(true);
     try {
@@ -50,35 +70,117 @@ export default function Auth({ navigate, onLogin }: Props) {
     }
   };
 
-  const handleGuestAccess = () => {
-    onLogin('guest@demo.com');
-    navigate('dashboard');
+  const handleDemoSignIn = async () => {
+    setError('');
+    setSuccess('');
+    setLoading(true);
+    try {
+      const { error: err } = await supabase.auth.signInWithPassword({
+        email: DEMO_EMAIL,
+        password: DEMO_PASSWORD,
+      });
+      if (err) throw err;
+      onLogin(DEMO_EMAIL);
+      navigate('dashboard');
+    } catch (err: unknown) {
+      setError(err instanceof Error ? err.message : 'Demo sign-in failed.');
+    } finally {
+      setLoading(false);
+    }
   };
 
   return (
-    <div className="min-h-screen bg-gradient-to-br from-blue-50 via-white to-gray-50 flex items-center justify-center p-4">
-      <div className="w-full max-w-md">
-        {/* Logo */}
-        <div className="text-center mb-8">
-          <button onClick={() => navigate('landing')} className="inline-flex flex-col items-center gap-2 group">
-            <div className="w-12 h-12 bg-blue-600 rounded-2xl flex items-center justify-center shadow-lg shadow-blue-200 group-hover:scale-105 transition-transform">
+    <div className="relative flex min-h-screen items-center justify-center overflow-hidden bg-[#030712] p-4 font-sans text-white">
+      {/* Aurora background glow */}
+      <div className="pointer-events-none fixed inset-0">
+        <div
+          className="absolute -left-32 -top-32 h-[540px] w-[540px] rounded-full opacity-35 blur-[130px] animate-aurora"
+          style={{ background: 'radial-gradient(circle, rgba(6,182,212,0.45), transparent 70%)' }}
+        />
+        <div
+          className="absolute -bottom-32 -right-32 h-[540px] w-[540px] rounded-full opacity-30 blur-[130px] animate-aurora"
+          style={{ background: 'radial-gradient(circle, rgba(99,102,241,0.5), transparent 70%)', animationDelay: '-7s' }}
+        />
+      </div>
+
+      <div className="relative z-10 w-full max-w-md">
+        {/* Back link */}
+        <button
+          type="button"
+          onClick={() => navigate('landing')}
+          className="mb-6 inline-flex items-center gap-1.5 text-xs font-medium text-gray-400 transition-colors hover:text-white"
+        >
+          <ArrowLeft size={13} />
+          Back to Home
+        </button>
+
+        {/* Brand */}
+        <div className="mb-7 text-center">
+          <button
+            type="button"
+            onClick={() => navigate('landing')}
+            className="group inline-flex flex-col items-center gap-2.5"
+          >
+            <div className="flex h-12 w-12 items-center justify-center rounded-2xl bg-gradient-to-br from-cyan-400 via-blue-500 to-indigo-600 shadow-[0_0_28px_rgba(6,182,212,0.45)] transition-transform group-hover:scale-105">
               <Activity size={22} className="text-white" />
             </div>
-            <span className="font-bold text-gray-900 text-xl">ContribuTrack</span>
+            <span className="text-xl font-black tracking-tight text-white">ContribuTrack</span>
           </button>
-          <p className="text-gray-500 text-sm mt-2">IoT + AI Group Contribution Tracker</p>
+          <p className="mt-1.5 text-xs text-gray-400">IoT + AI Group Contribution Intelligence</p>
         </div>
 
-        {/* Card */}
-        <div className="bg-white rounded-2xl shadow-xl border border-gray-100 overflow-hidden">
+        {/* Local Demo Banner */}
+        {IS_DEMO_MODE && (
+          <div className="glass-panel mb-4 rounded-2xl border-cyan-400/25 p-4">
+            <div className="flex items-start gap-3">
+              <div className="flex h-8 w-8 flex-shrink-0 items-center justify-center rounded-xl bg-gradient-to-br from-cyan-500 to-indigo-500 text-white shadow-lg shadow-cyan-500/20">
+                <Sparkles size={15} />
+              </div>
+              <div className="min-w-0 flex-1">
+                <p className="text-xs font-bold text-cyan-200">Local Demo Mode Active</p>
+                <p className="mt-1 text-[11px] leading-relaxed text-gray-400">
+                  Pre-seeded workspace running locally in your browser — no Supabase keys needed.
+                  <br />
+                  Demo login:{' '}
+                  <code className="rounded bg-white/10 px-1.5 py-0.5 font-mono text-[10px] text-cyan-200">
+                    {DEMO_EMAIL}
+                  </code>{' '}
+                  /{' '}
+                  <code className="rounded bg-white/10 px-1.5 py-0.5 font-mono text-[10px] text-cyan-200">
+                    {DEMO_PASSWORD}
+                  </code>
+                </p>
+                <button
+                  type="button"
+                  onClick={handleDemoSignIn}
+                  disabled={loading}
+                  className="mt-3 inline-flex items-center gap-1.5 rounded-xl bg-gradient-to-r from-cyan-400 via-blue-500 to-indigo-500 px-3.5 py-2 text-xs font-bold text-white shadow-lg shadow-cyan-500/25 transition-all hover:scale-[1.02] disabled:opacity-60"
+                >
+                  <Sparkles size={13} />
+                  Quick Demo Sign In
+                </button>
+              </div>
+            </div>
+          </div>
+        )}
+
+        {/* Auth Card */}
+        <div className="glass-panel overflow-hidden rounded-3xl">
           {/* Tabs */}
-          <div className="flex border-b border-gray-100">
+          <div className="flex border-b border-white/[0.08]">
             {(['login', 'register'] as const).map((t) => (
               <button
                 key={t}
-                onClick={() => { setTab(t); setError(''); setSuccess(''); }}
-                className={`flex-1 py-3.5 text-sm font-semibold transition-colors ${
-                  tab === t ? 'text-blue-600 border-b-2 border-blue-600 bg-blue-50/50' : 'text-gray-500 hover:text-gray-700'
+                type="button"
+                onClick={() => {
+                  setTab(t);
+                  setError('');
+                  setSuccess('');
+                }}
+                className={`flex-1 py-3.5 text-xs font-bold uppercase tracking-wider transition-colors ${
+                  tab === t
+                    ? 'border-b-2 border-cyan-400 bg-cyan-500/10 text-cyan-300'
+                    : 'text-gray-400 hover:bg-white/[0.03] hover:text-gray-200'
                 }`}
               >
                 {t === 'login' ? 'Sign In' : 'Create Account'}
@@ -88,50 +190,55 @@ export default function Auth({ navigate, onLogin }: Props) {
 
           <div className="p-7">
             {error && (
-              <div className="flex items-center gap-2 bg-red-50 border border-red-200 text-red-700 text-sm px-4 py-3 rounded-xl mb-5">
+              <div className="mb-5 flex items-center gap-2 rounded-xl border border-red-500/30 bg-red-500/10 px-4 py-3 text-xs text-red-300">
                 <AlertCircle size={15} className="flex-shrink-0" />
                 {error}
               </div>
             )}
             {success && (
-              <div className="flex items-center gap-2 bg-green-50 border border-green-200 text-green-700 text-sm px-4 py-3 rounded-xl mb-5">
-                <AlertCircle size={15} className="flex-shrink-0" />
+              <div className="mb-5 flex items-center gap-2 rounded-xl border border-emerald-500/30 bg-emerald-500/10 px-4 py-3 text-xs text-emerald-300">
+                <CheckCircle2 size={15} className="flex-shrink-0" />
                 {success}
               </div>
             )}
 
             <form onSubmit={handleSubmit} className="space-y-4">
               <div>
-                <label className="block text-sm font-medium text-gray-700 mb-1.5">Email address</label>
+                <label className="mb-1.5 block text-xs font-medium text-gray-400">
+                  Email address
+                </label>
                 <div className="relative">
-                  <Mail size={16} className="absolute left-3 top-1/2 -translate-y-1/2 text-gray-400" />
+                  <Mail size={15} className="absolute left-3.5 top-1/2 -translate-y-1/2 text-gray-500" />
                   <input
                     type="email"
                     value={email}
                     onChange={(e) => setEmail(e.target.value)}
                     placeholder="you@example.com"
-                    className="w-full pl-10 pr-4 py-2.5 text-sm border border-gray-200 rounded-xl focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-transparent"
+                    className="w-full rounded-xl border border-white/10 bg-white/[0.04] py-2.5 pl-10 pr-4 text-sm text-white placeholder-gray-600 transition-all focus:border-cyan-400/50 focus:outline-none focus:ring-1 focus:ring-cyan-400/40"
                     autoComplete="email"
                   />
                 </div>
               </div>
 
               <div>
-                <label className="block text-sm font-medium text-gray-700 mb-1.5">Password</label>
+                <label className="mb-1.5 block text-xs font-medium text-gray-400">
+                  Password
+                </label>
                 <div className="relative">
-                  <Lock size={16} className="absolute left-3 top-1/2 -translate-y-1/2 text-gray-400" />
+                  <Lock size={15} className="absolute left-3.5 top-1/2 -translate-y-1/2 text-gray-500" />
                   <input
                     type={showPass ? 'text' : 'password'}
                     value={password}
                     onChange={(e) => setPassword(e.target.value)}
                     placeholder="Min. 6 characters"
-                    className="w-full pl-10 pr-10 py-2.5 text-sm border border-gray-200 rounded-xl focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-transparent"
+                    className="w-full rounded-xl border border-white/10 bg-white/[0.04] py-2.5 pl-10 pr-10 text-sm text-white placeholder-gray-600 transition-all focus:border-cyan-400/50 focus:outline-none focus:ring-1 focus:ring-cyan-400/40"
                     autoComplete={tab === 'login' ? 'current-password' : 'new-password'}
                   />
                   <button
                     type="button"
                     onClick={() => setShowPass((p) => !p)}
-                    className="absolute right-3 top-1/2 -translate-y-1/2 text-gray-400 hover:text-gray-600"
+                    className="absolute right-3 top-1/2 -translate-y-1/2 text-gray-500 hover:text-gray-300"
+                    aria-label={showPass ? 'Hide password' : 'Show password'}
                   >
                     {showPass ? <EyeOff size={15} /> : <Eye size={15} />}
                   </button>
@@ -140,15 +247,17 @@ export default function Auth({ navigate, onLogin }: Props) {
 
               {tab === 'register' && (
                 <div>
-                  <label className="block text-sm font-medium text-gray-700 mb-1.5">Confirm Password</label>
+                  <label className="mb-1.5 block text-xs font-medium text-gray-400">
+                    Confirm Password
+                  </label>
                   <div className="relative">
-                    <Lock size={16} className="absolute left-3 top-1/2 -translate-y-1/2 text-gray-400" />
+                    <Lock size={15} className="absolute left-3.5 top-1/2 -translate-y-1/2 text-gray-500" />
                     <input
                       type={showPass ? 'text' : 'password'}
                       value={confirmPassword}
                       onChange={(e) => setConfirmPassword(e.target.value)}
                       placeholder="Repeat password"
-                      className="w-full pl-10 pr-4 py-2.5 text-sm border border-gray-200 rounded-xl focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-transparent"
+                      className="w-full rounded-xl border border-white/10 bg-white/[0.04] py-2.5 pl-10 pr-4 text-sm text-white placeholder-gray-600 transition-all focus:border-cyan-400/50 focus:outline-none focus:ring-1 focus:ring-cyan-400/40"
                     />
                   </div>
                 </div>
@@ -157,29 +266,21 @@ export default function Auth({ navigate, onLogin }: Props) {
               <button
                 type="submit"
                 disabled={loading}
-                className="w-full flex items-center justify-center gap-2 bg-blue-600 text-white py-2.5 rounded-xl hover:bg-blue-700 transition-all font-semibold text-sm shadow-lg shadow-blue-100 disabled:opacity-60"
+                className="flex w-full items-center justify-center gap-2 rounded-xl bg-gradient-to-r from-cyan-500 via-blue-500 to-indigo-500 py-2.5 text-sm font-bold text-white shadow-lg shadow-cyan-500/20 transition-all hover:scale-[1.01] disabled:opacity-60"
               >
-                {loading ? <Loader size={16} className="animate-spin" /> : null}
+                {loading ? <Loader size={15} className="animate-spin" /> : null}
                 {tab === 'login' ? 'Sign In' : 'Create Account'}
               </button>
             </form>
 
-            <div className="relative my-5">
-              <div className="absolute inset-0 flex items-center"><div className="w-full border-t border-gray-200" /></div>
-              <div className="relative flex justify-center text-xs text-gray-400 bg-white px-3">or</div>
-            </div>
-
-            <button
-              onClick={handleGuestAccess}
-              className="w-full py-2.5 text-sm text-gray-700 border border-gray-200 rounded-xl hover:bg-gray-50 transition-all font-medium"
-            >
-              Continue as Guest (Demo)
-            </button>
-
             {tab === 'login' && (
-              <p className="text-center text-xs text-gray-500 mt-4">
-                Don't have an account?{' '}
-                <button onClick={() => setTab('register')} className="text-blue-600 font-medium hover:underline">
+              <p className="mt-5 text-center text-xs text-gray-500">
+                Don&apos;t have an account?{' '}
+                <button
+                  type="button"
+                  onClick={() => setTab('register')}
+                  className="font-semibold text-cyan-400 hover:underline"
+                >
                   Sign up
                 </button>
               </p>
@@ -187,7 +288,7 @@ export default function Auth({ navigate, onLogin }: Props) {
           </div>
         </div>
 
-        <p className="text-center text-xs text-gray-400 mt-6">
+        <p className="mt-6 text-center text-[11px] text-gray-600">
           By continuing, you agree to our Terms of Service and Privacy Policy.
         </p>
       </div>

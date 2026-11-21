@@ -1,9 +1,24 @@
+export interface Workspace {
+  id: string;
+  name: string;
+  slug: string;
+  plan_tier: 'starter' | 'pro' | 'enterprise';
+  stripe_pro_url: string;
+  stripe_enterprise_url: string;
+  stripe_customer_id?: string | null;
+  fairness_method: 'stddev' | 'gini' | 'range';
+  created_by?: string | null;
+  created_at: string;
+}
+
 export interface Member {
   id: string;
+  workspace_id?: string;
   name: string;
   email: string;
   role: string;
   device_id?: string | null;
+  device_secret?: string | null;
   avatar_color: string;
   face_image_url?: string | null;
   voice_sample_url?: string | null;
@@ -14,6 +29,7 @@ export interface Member {
 
 export interface Session {
   id: string;
+  workspace_id?: string;
   title: string;
   description: string;
   status: 'active' | 'completed' | 'paused';
@@ -24,6 +40,7 @@ export interface Session {
 
 export interface IotData {
   id: string;
+  workspace_id?: string;
   device_id: string;
   member_id?: string | null;
   voice: number;
@@ -49,6 +66,7 @@ export interface IotData {
 
 export interface Document {
   id: string;
+  workspace_id?: string;
   name: string;
   file_type: string;
   file_size: number;
@@ -62,6 +80,7 @@ export interface Document {
 
 export interface AiInsight {
   id: string;
+  workspace_id?: string;
   member_id: string;
   session_id: string | null;
   overall_score: number;
@@ -92,6 +111,68 @@ export interface SessionMember {
   sessions?: { id: string; title: string; status: string } | null;
 }
 
+export interface PeerReview {
+  id: string;
+  workspace_id: string;
+  member_id: string;
+  rating: number;
+  note: string;
+  updated_at: string;
+  created_at: string;
+}
+
+export interface SessionAction {
+  id: string;
+  workspace_id: string;
+  session_id: string;
+  action_key: string;
+  label: string;
+  done: boolean;
+  updated_at: string;
+  created_at: string;
+}
+
+export interface ContributionCertificate {
+  id: string;
+  credential_id: string;
+  workspace_id: string;
+  workspace_name: string;
+  member_id: string;
+  member_name: string;
+  payload: Record<string, unknown>;
+  signature: string;
+  algorithm: string;
+  issued_at: string;
+  created_at: string;
+}
+
+export interface WorkspaceInvite {
+  id: string;
+  workspace_id: string;
+  session_id: string | null;
+  code: string;
+  role: string;
+  created_by: string;
+  expires_at: string | null;
+  created_at: string;
+}
+
+export interface ContributionEvidence {
+  id: string;
+  workspace_id: string;
+  member_id: string;
+  category: 'hardware' | 'design' | 'code' | 'research' | 'facilitation';
+  title: string;
+  description: string;
+  evidence_url: string;
+  hours: number;
+  status: 'pending' | 'approved' | 'needs_info';
+  reviewer_note: string;
+  created_at: string;
+  updated_at: string;
+  members?: { name: string; email: string } | null;
+}
+
 export type Page =
   | 'landing'
   | 'login'
@@ -100,4 +181,6 @@ export type Page =
   | 'sessions'
   | 'documents'
   | 'settings'
-  | 'iot';
+  | 'iot'
+  | 'verify'
+  | 'join';

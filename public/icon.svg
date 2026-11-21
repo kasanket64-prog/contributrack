@@ -1,0 +1,24 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 512 512" fill="none">
+  <defs>
+    <radialGradient id="ct-glow" cx="50%" cy="50%" r="50%">
+      <stop offset="0%" stop-color="#4F46E5" stop-opacity="0.28" />
+      <stop offset="100%" stop-color="#09090B" stop-opacity="0" />
+    </radialGradient>
+    <linearGradient id="ct-wave" x1="110" y1="256" x2="402" y2="256" gradientUnits="userSpaceOnUse">
+      <stop offset="0%" stop-color="#FAFAFA" />
+      <stop offset="72%" stop-color="#E4E4E7" />
+      <stop offset="100%" stop-color="#818CF8" />
+    </linearGradient>
+  </defs>
+  <rect x="16" y="16" width="480" height="480" rx="108" fill="#09090B" stroke="#27272A" stroke-width="6" />
+  <circle cx="256" cy="256" r="200" fill="url(#ct-glow)" />
+  <circle cx="256" cy="256" r="172" stroke="#6366F1" stroke-opacity="0.16" stroke-width="2" />
+  <path
+    d="M112 266 H178 L214 166 L270 346 L316 222 L348 266 H398"
+    stroke="url(#ct-wave)"
+    stroke-width="28"
+    stroke-linecap="round"
+    stroke-linejoin="round"
+  />
+  <circle cx="400" cy="266" r="16" fill="#818CF8" />
+</svg>
